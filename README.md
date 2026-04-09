@@ -1,4 +1,4 @@
-# WiFi Quality Monitor PRO (ESP32-C6)
+# WiFi Quality Monitor (ESP32-C6)
 
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-v6.1.13-orange)
 ![Framework](https://img.shields.io/badge/Framework-Arduino-blue)
@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 ![Tool](https://img.shields.io/badge/Tool-Antigravity%20%28Google%29-lightgrey)
 
-Un monitor de señal WiFi de grado profesional diseñado para el **WaveShare ESP32-C6-LCD-1.47**. Optimizado con **Double Buffering** mediante la librería LovyanGFX para una fluidez excepcional.
+Un monitor de señal WiFi diseñado para el **WaveShare ESP32-C6-LCD-1.47**. Optimizado con **Double Buffering** mediante la librería LovyanGFX para una fluidez excepcional.
 
 ![Hardware Demo 1](docs/img/Photo01.jpg)
 

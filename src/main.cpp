@@ -6,7 +6,7 @@
 #include "config.h"
 
 /**
- * PROYECTO: WIFI QUALITY PRO
+ * PROYECTO: WIFI QUALITY
  * DESCRIPCIÓN: Monitor de señal avanzado para ESP32-C6 (v4.2 - SPRITE)
  * ESTADO: DOBLE BUFFERING PARA CERO PARPADEOS
  */
@@ -74,7 +74,7 @@ uint16_t getSignalColor(int pct) {
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n--- WIFI QUALITY PRO v4.2 SPRITE START ---");
+    Serial.println("\n--- WIFI QUALITY v4.2 SPRITE START ---");
     pinMode(LED_PIN, OUTPUT);
     
     tft.init();
@@ -109,12 +109,20 @@ void setup() {
 }
 
 void drawWiFiDashboard() {
-    rssi = WiFi.RSSI();
+    bool connected = (WiFi.status() == WL_CONNECTED);
     
-    // Mapear RSSI a Porcentaje (-100 a -50 dBm -> 0 a 100%)
-    signalPct = 2 * (rssi + 100);
-    signalPct = constrain(signalPct, 0, 100);
-    uint16_t color = getSignalColor(signalPct);
+    if (!connected) {
+        rssi = -100;
+        signalPct = 0;
+        pingLatency = -1;
+    } else {
+        rssi = WiFi.RSSI();
+        // Mapear RSSI a Porcentaje (-100 a -50 dBm -> 0 a 100%)
+        signalPct = 2 * (rssi + 100);
+        signalPct = constrain(signalPct, 0, 100);
+    }
+    
+    uint16_t color = connected ? getSignalColor(signalPct) : TFT_RED;
 
     // Limpiar el canvas invisible
     canvas.fillScreen(TFT_BLACK);
@@ -124,14 +132,18 @@ void drawWiFiDashboard() {
     canvas.setTextColor(color, TFT_BLACK); 
     canvas.setTextDatum(top_center);
     char pctBuffer[10];
-    sprintf(pctBuffer, "%3d%%", signalPct);
+    if (connected) {
+        sprintf(pctBuffer, "%3d%%", signalPct);
+    } else {
+        sprintf(pctBuffer, "OFF");
+    }
     canvas.drawString(pctBuffer, canvas.width() / 2, 15);
 
     // 2. NOMBRE Y VERSIÓN (CENTRO)
     canvas.setTextSize(2);
     canvas.setTextColor(TFT_WHITE, TFT_BLACK);
     canvas.setTextDatum(middle_center);
-    canvas.drawString("WIFI MONITOR PRO v4.2", canvas.width() / 2, 85);
+    canvas.drawString(connected ? "WIFI MONITOR v4.2" : "DISCONNECTED", canvas.width() / 2, 85);
 
     // 3. BARRA DE SEÑAL (INFERIOR)
     int barY = 110;
@@ -139,14 +151,20 @@ void drawWiFiDashboard() {
     int barHeight = 30;
     canvas.drawRect((canvas.width() - barWidth) / 2, barY, barWidth, barHeight, TFT_WHITE);
     canvas.fillRect((canvas.width() - barWidth) / 2 + 2, barY + 2, barWidth - 4, barHeight - 4, TFT_BLACK);
-    canvas.fillRect((canvas.width() - barWidth) / 2 + 2, barY + 2, ((barWidth - 4) * signalPct) / 100, barHeight - 4, color);
+    if (connected) {
+        canvas.fillRect((canvas.width() - barWidth) / 2 + 2, barY + 2, ((barWidth - 4) * signalPct) / 100, barHeight - 4, color);
+    }
 
     // 4. DETALLES TÉCNICOS (FOOTER)
     canvas.setTextSize(1);
     canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
     canvas.setTextDatum(bottom_left);
     canvas.setCursor(20, 150);
-    canvas.printf("RSSI: %d dBm | IP: %s | CH: %d", rssi, WiFi.localIP().toString().c_str(), WiFi.channel());
+    if (connected) {
+        canvas.printf("RSSI: %d dBm | IP: %s | CH: %d", rssi, WiFi.localIP().toString().c_str(), WiFi.channel());
+    } else {
+        canvas.printf("SYSTEM IDLE | WAITING FOR CONNECTION...");
+    }
     
     canvas.setCursor(20, 165);
     canvas.printf("PING: %d ms", pingLatency);
