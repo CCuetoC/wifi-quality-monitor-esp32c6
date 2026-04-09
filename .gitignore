@@ -1,0 +1,12 @@
+# PlatformIO
+.pio
+.vscode
+*.temp
+
+# Secretos
+.env
+src/config.h
+
+# OS files
+.DS_Store
+Thumbs.db
