@@ -6,18 +6,51 @@
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 ![Tool](https://img.shields.io/badge/Tool-Antigravity%20%28Google%29-lightgrey)
 
-Un monitor de señal WiFi diseñado para el **WaveShare ESP32-C6-LCD-1.47**. Optimizado con **Double Buffering** mediante la librería LovyanGFX para una fluidez excepcional.
+Un monitor de señal WiFi de grado industrial diseñado para el **WaveShare ESP32-C6-LCD-1.47**. Este proyecto implementa una arquitectura modular por capas y un algoritmo de calidad basado en estándares de la industria (IEEE 802.11).
 
 ![Hardware Demo 1](docs/img/Photo01.jpg)
 
-## 🌟 Características
+## 🌟 Características Técnicas
 
-- **Monitoreo en Tiempo Real**: Visualización de precisión de RSSI (dBm) y porcentaje de calidad.
-- **Double Buffering (Buffer Doble)**: Gestión de memoria mediante Sprites para una interfaz sin parpadeo.
-- **Diagnóstico Activo**: Prueba de Ping automática a los DNS de Google (8.8.8.8) cada 5 segundos.
-- **Semáforo Visual**: Codificación de colores (Verde > 80%, Amarillo > 40%, Rojo < 40%).
-- **Observabilidad Física**: LED externo sincronizado con la calidad de la señal.
-- **Arquitectura Segura**: Carga de credenciales mediante variables de entorno (`.env`).
+- **Arquitectura Modular**: Separación estricta entre servicios de red, análisis de métricas y renderizado visual.
+- **QoS Quality Score**: Cálculo ponderado de salud de red (60% Potencia RSSI, 40% Latencia Ping).
+- **Double Buffering**: Interfaz fluida sin parpadeos vía LovyanGFX.
+- **Diagnóstico Activo**: Monitoreo constante de latencia contra servidores core (8.8.8.8).
+- **Semáforo Visual Industrial**: Clasificación: Excellent, Good, Fair, Poor y Critical.
+
+---
+
+## 🏗️ Arquitectura del Sistema (Módulo 1)
+
+El sistema se divide en capas de responsabilidad única para asegurar la escalabilidad:
+
+```mermaid
+graph TD
+    A[main.cpp] --> B[NetworkService]
+    A --> C[QualityAnalyzer]
+    A --> D[DashboardRenderer]
+    
+    B -->|Datos Raw: RSSI, IP, Ping| A
+    A -->|Calcula Calidad| C
+    C -->|Métricas: Score, Label, Color| A
+    A -->|Dibuja UI| D
+```
+
+### Descripción de Capas:
+1. **NetworkService**: Capa de transporte. Gestiona WiFi y ejecución asíncrona de Pings.
+2. **QualityAnalyzer**: Capa lógica. Convierte dBm y ms en un índice de salud (0-100%) siguiendo umbrales de la IEEE.
+3. **DashboardRenderer**: Capa de presentación. Encapsula LovyanGFX y gestiona el Double Buffering.
+
+---
+
+## 📊 Algoritmo de Calidad (IEEE/Industrial)
+
+A diferencia de los medidores básicos, este monitor utiliza una ponderación:
+
+| Métrica | Peso | Umbral Excelente | Umbral Crítico |
+| :--- | :--- | :--- | :--- |
+| **RSSI** | 60% | > -50 dBm | < -90 dBm |
+| **Latencia** | 40% | < 50 ms | > 500 ms |
 
 ---
 
@@ -29,59 +62,30 @@ Un monitor de señal WiFi diseñado para el **WaveShare ESP32-C6-LCD-1.47**. Opt
 
 ---
 
-## 🛠️ Especificaciones Técnicas
+## 🛠️ Especificaciones Técnicas Hardware
 
 | Componente | Detalle |
 | :--- | :--- |
 | **MCU** | ESP32-C6 (RISC-V 32-bit @ 160MHz) |
 | **Display** | 1.47" LCD (ST7789, 172x320 px) |
-| **Driver Gráfico** | LovyanGFX v1.1.16 |
 | **Conectividad** | WiFi 6 (802.11 ax/b/g/n) |
 | **Pines SPI** | SCK(7), MOSI(6), CS(14), DC(15), RST(21) |
 | **Backlight** | Pin 22 (PWM habilitado) |
-
-### Pinout de Referencia
-![Pinout Diagram](docs/img/Pin%20Out%20ESP32%20C6.jpeg)
 
 ---
 
 ## 🚀 Instalación y Desarrollo
 
-### Herramientas Recomendadas
-Este proyecto ha sido desarrollado utilizando **Antigravity de Google**, un entorno de IA basado en la arquitectura de VS Code optimizado para el "Vibe Coding" y el desarrollo rápido de hardware.
+Desarrollado en **Antigravity (Google)**. 
 
-### Flujo de Configuración
-1. **Clonar e instalar dependencias**:
-   ```bash
-   git clone https://github.com/CCuetoC/wifi-quality-monitor-esp32c6.git
-   ```
-2. **Gestionar Secretos**:
-   Renombra `.env.example` a `.env` y añade tus credenciales. **Nunca subas tu archivo `.env` al repositorio público.**
-   ```env
-   WIFI_SSID="TU_RED"
-   WIFI_PASS="TU_CONTRASEÑA"
-   ```
-3. **Compilar y Flashear**:
-   Utiliza el comando de PlatformIO:
+1. **Configurar Credenciales**:
+   Copia `.env.example` a `.env` y añade tus datos.
+2. **Compilación y Carga**:
    ```bash
    pio run --target upload
    ```
 
 ---
 
-## 🛡️ Seguridad y Buenas Prácticas
-
-> [!IMPORTANT]
-> **Gestión de Credenciales**: El proyecto utiliza un `env_loader.py` que inyecta automáticamente las variables del archivo `.env` como banderas de compilación. Esto mantiene tus credenciales fuera del binario compartido y del historial de Git.
-
-- Se utiliza un `.gitignore` robusto siguiendo los estándares de la industria para evitar archivos temporales en el repositorio.
-- El uso de **Double Buffering** no solo mejora la estética, sino que reduce el consumo de energía al minimizar los ciclos de refresco de pantalla innecesarios.
-
----
-
 ## 📄 Licencia
-
 Este proyecto está bajo la licencia **MIT**. Desarrollado por [César Cueto](https://github.com/CCuetoC).
-
----
-*Standalone project designed for exploring high-speed hardware integration.*
