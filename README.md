@@ -4,7 +4,7 @@
 ![Framework](https://img.shields.io/badge/Framework-Arduino-blue)
 ![Hardware](https://img.shields.io/badge/Hardware-ESP32--C6-green)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-![Tool](https://img.shields.io/badge/Tool-Antigravity%20(Google)-lightgrey)
+![Tool](https://img.shields.io/badge/Tool-Antigravity%20%28Google%29-lightgrey)
 
 Un monitor de señal WiFi de grado profesional diseñado para el **WaveShare ESP32-C6-LCD-1.47**. Optimizado con **Double Buffering** mediante la librería LovyanGFX para una fluidez excepcional.
 
