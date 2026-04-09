@@ -1,17 +1,23 @@
 # WiFi Quality Monitor PRO (ESP32-C6) 📡
 
-Un monitor de señal WiFi de alto rendimiento diseñado para el **WaveShare ESP32-C6-LCD-1.47**. Este proyecto utiliza **Double Buffering** con la librería LovyanGFX para ofrecer una interfaz fluida, sin parpadeos y con diagnósticos en tiempo real.
+![PlatformIO](https://img.shields.io/badge/PlatformIO-v6.1.13-orange)
+![Framework](https://img.shields.io/badge/Framework-Arduino-blue)
+![Hardware](https://img.shields.io/badge/Hardware-ESP32--C6-green)
+![License](https://img.shields.io/badge/License-MIT-yellow)
+![Tool](https://img.shields.io/badge/Tool-Antigravity%20(Google)-lightgrey)
+
+Un monitor de señal WiFi de grado profesional diseñado para el **WaveShare ESP32-C6-LCD-1.47**. Optimizado con **Double Buffering** mediante la librería LovyanGFX para una fluidez excepcional.
 
 ![Hardware Demo 1](docs/img/Photo01.jpg)
 
 ## 🌟 Características
 
-- **Monitoreo en Tiempo Real**: Visualización de RSSI (dBm) y porcentaje de calidad de señal.
-- **Double Buffering**: Renderizado ultra fluido utilizando Sprites de LovyanGFX.
-- **Diagnóstico de Red**: Prueba de Ping automática a los DNS de Google (8.8.8.8).
-- **Interfaz Adaptativa**: Cambio dinámico de colores según la potencia de la señal (Verde > Amarillo > Rojo).
-- **Indicador LED Físico**: LED externo que indica estabilidad de conexión (fijo para señal fuerte, parpadeo para señal débil).
-- **Cero Parpadeo**: La pantalla solo actualiza los cambios necesarios, eliminando el "ghosting".
+- **Monitoreo en Tiempo Real**: Visualización de precisión de RSSI (dBm) y porcentaje de calidad.
+- **Double Buffering (Buffer Doble)**: Gestión de memoria mediante Sprites para una interfaz sin parpadeo.
+- **Diagnóstico Activo**: Prueba de Ping automática a los DNS de Google (8.8.8.8) cada 5 segundos.
+- **Semáforo Visual**: Codificación de colores (Verde > 80%, Amarillo > 40%, Rojo < 40%).
+- **Observabilidad Física**: LED externo sincronizado con la calidad de la señal.
+- **Arquitectura Segura**: Carga de credenciales mediante variables de entorno (`.env`).
 
 ---
 
@@ -23,61 +29,59 @@ Un monitor de señal WiFi de alto rendimiento diseñado para el **WaveShare ESP3
 
 ---
 
-## 🛠️ Hardware y Pinout
+## 🛠️ Especificaciones Técnicas
 
-Este firmware está optimizado para la placa **ESP32-C6-LCD-1.47** de WaveShare.
+| Componente | Detalle |
+| :--- | :--- |
+| **MCU** | ESP32-C6 (RISC-V 32-bit @ 160MHz) |
+| **Display** | 1.47" LCD (ST7789, 172x320 px) |
+| **Driver Gráfico** | LovyanGFX v1.1.16 |
+| **Conectividad** | WiFi 6 (802.11 ax/b/g/n) |
+| **Pines SPI** | SCK(7), MOSI(6), CS(14), DC(15), RST(21) |
+| **Backlight** | Pin 22 (PWM habilitado) |
 
-### Diagrama de Pines (Pinout)
+### Pinout de Referencia
 ![Pinout Diagram](docs/img/Pin%20Out%20ESP32%20C6.jpeg)
 
-### Detalles de Conexión:
-- **Pantalla LCD (ST7789)**:
-  - SCK: Pin 7
-  - MOSI: Pin 6
-  - CS: Pin 14
-  - DC: Pin 15
-  - RST: Pin 21
-  - Backlight: Pin 22
-- **LED de Status**: Pin 5 (Configurable en `main.cpp`).
-
 ---
 
-## 🚀 Instalación y Configuración
+## 🚀 Instalación y Desarrollo
 
-### Requisitos
-- [Visual Studio Code](https://code.visualstudio.com/)
-- [PlatformIO IDE](https://platformio.org/)
+### Herramientas Recomendadas
+Este proyecto ha sido desarrollado utilizando **Antigravity de Google**, un entorno de IA basado en la arquitectura de VS Code optimizado para el "Vibe Coding" y el desarrollo rápido de hardware.
 
-### Configuración de Credenciales
-Este proyecto utiliza un archivo `.env` para gestionar las credenciales de WiFi de forma segura, evitando que se filtren en el historial de Git.
-
-1. Renombra el archivo `.env.example` a `.env`:
+### Flujo de Configuración
+1. **Clonar e instalar dependencias**:
    ```bash
-   cp .env.example .env
+   git clone https://github.com/CCuetoC/wifi-quality-monitor-esp32c6.git
    ```
-2. Edita `.env` con tu SSID y Password:
+2. **Gestionar Secretos**:
+   Renombra `.env.example` a `.env` y añade tus credenciales. **Nunca subas tu archivo `.env` al repositorio público.**
    ```env
-   WIFI_SSID="Tu_Nombre_de_Red"
-   WIFI_PASS="Tu_Contraseña"
+   WIFI_SSID="TU_RED"
+   WIFI_PASS="TU_CONTRASEÑA"
    ```
-
-### Compilación y Carga
-1. Abre el proyecto en VS Code con PlatformIO.
-2. Haz clic en **Build** (✔) para compilar.
-3. Haz clic en **Upload** (➔) para subir el firmware a tu ESP32-C6.
+3. **Compilar y Flashear**:
+   Utiliza el comando de PlatformIO:
+   ```bash
+   pio run --target upload
+   ```
 
 ---
 
-## 📦 Librerías Utilizadas
+## 🛡️ Seguridad y Buenas Prácticas
 
-- [LovyanGFX](https://github.com/lovyan03/LovyanGFX): Driver de pantalla de alto rendimiento.
-- [ESP32Ping](https://github.com/marian-craciunescu/ESP32Ping): Para diagnósticos de latencia de red.
+> [!IMPORTANT]
+> **Gestión de Credenciales**: El proyecto utiliza un `env_loader.py` que inyecta automáticamente las variables del archivo `.env` como banderas de compilación. Esto mantiene tus credenciales fuera del binario compartido y del historial de Git.
+
+- Se utiliza un `.gitignore` robusto siguiendo los estándares de la industria para evitar archivos temporales en el repositorio.
+- El uso de **Double Buffering** no solo mejora la estética, sino que reduce el consumo de energía al minimizar los ciclos de refresco de pantalla innecesarios.
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto está bajo la licencia **MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+Este proyecto está bajo la licencia **MIT**. Desarrollado por [César Cueto](https://github.com/CCuetoC).
 
 ---
-**Desarrollado como parte de la exploración en "Vibe Coding" + Hardware por [César Cueto](https://github.com/CCuetoC).**
+*Standalone project designed for exploring high-speed hardware integration.*

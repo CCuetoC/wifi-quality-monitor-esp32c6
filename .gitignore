@@ -1,12 +1,21 @@
 # PlatformIO
 .pio
 .vscode
+.antigravity
 *.temp
 
-# Secretos
+# Compilación y Binarios
+*.elf
+*.bin
+*.hex
+*.map
+
+# Secretos y Configuración Local
 .env
 src/config.h
+env_loader.pyc
 
-# OS files
+# Sistema Operativo
 .DS_Store
 Thumbs.db
+Desktop.ini
