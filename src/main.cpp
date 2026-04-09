@@ -131,7 +131,7 @@ void drawWiFiDashboard() {
     canvas.setTextSize(2);
     canvas.setTextColor(TFT_WHITE, TFT_BLACK);
     canvas.setTextDatum(middle_center);
-    canvas.drawString("POLLITO_PLUS v4.2", canvas.width() / 2, 85);
+    canvas.drawString("WIFI MONITOR PRO v4.2", canvas.width() / 2, 85);
 
     // 3. BARRA DE SEÑAL (INFERIOR)
     int barY = 110;
