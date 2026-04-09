@@ -1,4 +1,4 @@
-# WiFi Quality Monitor PRO (ESP32-C6) 📡
+# WiFi Quality Monitor PRO (ESP32-C6)
 
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-v6.1.13-orange)
 ![Framework](https://img.shields.io/badge/Framework-Arduino-blue)
