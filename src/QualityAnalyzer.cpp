@@ -37,6 +37,11 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
     return metrics;
 }
 
+void QualityAnalyzer::addSample(int score) {
+    _history[_historyIndex] = score;
+    _historyIndex = (_historyIndex + 1) % HISTORY_SIZE;
+}
+
 int QualityAnalyzer::_mapRSSI(int rssi) {
     if (rssi > -50) return 100;
     if (rssi < -95) return 0;

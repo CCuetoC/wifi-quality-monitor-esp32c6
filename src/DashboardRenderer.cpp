@@ -33,10 +33,18 @@ DashboardRenderer::LGFX_C6::LGFX_C6(void) {
 }
 
 void DashboardRenderer::begin() {
+    Serial.println("DashboardRenderer: Inicializando TFT...");
     _tft.init();
     _tft.setRotation(1);
+    
+    Serial.println("DashboardRenderer: Configurando Lienzo (Sprite)...");
     _canvas.setColorDepth(16);
-    _canvas.createSprite(_tft.width(), _tft.height());
+    
+    if (!_canvas.createSprite(_tft.width(), _tft.height())) {
+        Serial.println("!!! ERROR: Memoria insuficiente para el Sprite !!!");
+    } else {
+        Serial.printf("DashboardRenderer: Sprite creado. Heap libre: %d bytes\n", ESP.getFreeHeap());
+    }
 }
 
 void DashboardRenderer::drawBootScreen(const char* state) {
@@ -45,10 +53,10 @@ void DashboardRenderer::drawBootScreen(const char* state) {
     _canvas.setTextSize(2);
     _canvas.setTextDatum(middle_center);
     _canvas.drawString(state, _canvas.width()/2, _canvas.height()/2);
-    _canvas.pushSprite(0,0);
+    _canvas.pushSprite(&_tft, 0, 0);
 }
 
-void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health) {
+void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, const int* history, int historySize) {
     _canvas.fillScreen(TFT_BLACK);
     
     _drawHeader(health.score, health.color);
@@ -62,9 +70,31 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, co
     _canvas.drawString(buffer, _canvas.width() / 2, 85);
     
     _drawSignalBar(health.score, health.color);
+    _drawHistoryGraph(history, historySize, health.color);
     _drawFooter(net);
     
-    _canvas.pushSprite(0,0);
+    _canvas.pushSprite(&_tft, 0, 0);
+}
+
+void DashboardRenderer::_drawHistoryGraph(const int* history, int size, uint16_t color) {
+    int graphX = 20;
+    int graphY = 145;
+    int graphW = 280;
+    int graphH = 35;
+
+    // Dibujar recuadro de fondo
+    _canvas.drawRect(graphX, graphY, graphW, graphH, 0x18C3); // Gris muy oscuro
+    
+    // Dibujar rejilla simple (opcional para pro vibe)
+    _canvas.drawFastHLine(graphX, graphY + graphH/2, graphW, 0x3186);
+
+    // Dibujar línea de tendencia
+    int step = graphW / (size - 1);
+    for (int i = 0; i < size - 1; i++) {
+        int y1 = graphY + graphH - (history[i] * graphH / 100);
+        int y2 = graphY + graphH - (history[i+1] * graphH / 100);
+        _canvas.drawLine(graphX + (i * step), y1, graphX + ((i+1) * step), y2, color);
+    }
 }
 
 void DashboardRenderer::drawDisconnected() {
@@ -83,7 +113,7 @@ void DashboardRenderer::drawDisconnected() {
     _canvas.setCursor(20, 150);
     _canvas.printf("SYSTEM IDLE | WAITING FOR CONNECTION...");
     
-    _canvas.pushSprite(0,0);
+    _canvas.pushSprite(&_tft, 0, 0);
 }
 
 void DashboardRenderer::_drawHeader(int score, uint16_t color) {

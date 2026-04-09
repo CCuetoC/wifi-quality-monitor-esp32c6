@@ -39,8 +39,11 @@ void loop() {
         // Cálculo de Puntaje Industrial
         QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingMs);
         
-        // Renderizar Dashboard
-        renderer.drawDashboard(netData, health);
+        // Registrar en historial
+        analyzer.addSample(health.score);
+        
+        // Renderizar Dashboard con Historial
+        renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize());
         
         // Control de LED según RSSI
         digitalWrite(LED_PIN, (netData.rssi > -70) ? HIGH : LOW);
