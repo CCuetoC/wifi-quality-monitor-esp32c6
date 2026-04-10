@@ -64,7 +64,9 @@ void NetworkService::update() {
         // Forzar sincronización con offset regional
         configTime(_gmtOffset * 3600, 0, "pool.ntp.org", "time.google.com");
         _bootPhase = 3;
-        logEvent("SYS_STATUS", "Regional Clock Synced");
+        char buf[64];
+        sprintf(buf, "Regional Clock Synced (GMT %d)", _gmtOffset);
+        logEvent("SYS_STATUS", buf);
     }
 
     if (_server) _server->handleClient();
@@ -112,7 +114,7 @@ void NetworkService::logEvent(const char* type, const char* data) {
     char timeStr[16] = "BOOTING";
     time_t now; time(&now);
     if (now > 1000000) {
-        struct tm timeinfo; gmtime_r(&now, &timeinfo);
+        struct tm timeinfo; localtime_r(&now, &timeinfo);
         strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", &timeinfo);
         strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
     }
