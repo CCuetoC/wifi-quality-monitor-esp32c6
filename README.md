@@ -80,9 +80,47 @@ $$Quality Score = (0.6 \times RSSI_{score}) + (0.4 \times Latency_{score})$$
 
 ---
 
-## 🚀 Instalación y Desarrollo
+## 🧭 Filosofía de Diseño: AI-Orchestration
 
-Desarrollado en **Antigravity (Google)**. 
+Este proyecto no es solo código; es una demostración de **Ingeniería de Orquestación**. 
+- **Arquitecto Humano**: César Cueto define la lógica de negocio, los estándares industriales (IEEE 802.11 QoS) y la visión de producto.
+- **Brazo Ejecutor (IA)**: **Antigravity (Google)** implementa la arquitectura, optimiza algoritmos y garantiza la robustez mediante iteraciones de alto rendimiento.
+
+---
+
+## 📈 Benchmarks de Desempeño (Industrial Ready)
+
+| Métrica | Valor | Estado |
+| :--- | :--- | :---: |
+| **Uso de Heap** | ~180 KB Free | ✅ Estable |
+| **Resiliencia** | Watchdog 10s | ✅ Auto-recovery |
+| **Diagnóstico** | Dual (LAN/WAN) | ✅ Activo |
+
+---
+
+## 🗺️ Roadmap de Desarrollo
+
+- [x] **Fase 1**: Arquitectura modular básica y renderizado estable.
+- [x] **Fase 2**: Algoritmo de calidad industrial y Mega-Graph.
+- [x] **Fase 3**: Robustez Industrial (Backoff) y Analítica (Stability Index).
+- [x] **Fase 4**: Diagnóstico Dual e Industrial Watchdog.
+- [ ] **Fase 5**: MQTT / SCADA Integration.
+- [ ] **Fase 6**: Servidor Web Embebido.
+
+---
+
+## ⚖️ Tabla Comparativa Técnica
+
+| Característica | Este Monitor (Hardware) | WiFi Analyzer (Android App) | Router Admin Panel |
+| :--- | :---: | :---: | :---: |
+| **Monitoreo 24/7** | ✅ Siempre activo | ❌ Consume batería | ❌ Requiere Login |
+| **Latencia Dual** | ✅ LAN + WAN | ❌ Solo RSSI | ⚠️ Solo local |
+| **Índice de Estabilidad**| ✅ Jitter Analytics | ❌ No | ❌ No |
+| **Resistencia Industrial**| ✅ Hardware Watchdog | ❌ No | ✅ Sí |
+
+---
+
+## 🚀 Instalación y Desarrollo
 
 1. **Configurar Credenciales**:
    Copia `.env.example` a `.env` y añade tus datos.

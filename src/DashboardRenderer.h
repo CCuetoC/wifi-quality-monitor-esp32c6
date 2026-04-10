@@ -29,7 +29,7 @@ private:
     void _drawHeader(int score, const char* label, uint16_t color);
     void _drawSignalBar(int score, uint16_t color);
     void _drawHistoryGraph(const int* history, int size, int circularIndex, uint16_t color);
-    void _drawFooter(const NetworkService::NetworkData& net);
+    void _drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health);
 };
 
 #endif

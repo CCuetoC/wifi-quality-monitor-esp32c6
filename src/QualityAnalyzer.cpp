@@ -9,14 +9,23 @@
 QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pingMs) {
     HealthMetrics metrics;
     
-    // Aplicar Promedio Móvil para suavizar variaciones bruscas
+    // Aplicar Promedio Móvil
     int avgRSSI = _addToMovingAverage(_rssiBuffer, rssi, _rssiIndex, MA_SIZE);
     int avgPing = _addToMovingAverage(_pingBuffer, (pingMs == -1 ? 500 : pingMs), _pingIndex, MA_SIZE);
+
+    // Calcular Estabilidad (Jitter) basado en el rango del buffer de RSSI
+    int minR = 0, maxR = -110;
+    for(int i=0; i<MA_SIZE; i++) {
+        if(_rssiBuffer[i] < minR) minR = _rssiBuffer[i];
+        if(_rssiBuffer[i] > maxR) maxR = _rssiBuffer[i];
+    }
+    metrics.jitter = (minR == 0) ? 0 : (maxR - minR);
+    metrics.isStable = (metrics.jitter <= 10); // Umbral de 10dBm de variablidad
 
     int rssiScore = _mapRSSI(avgRSSI);
     int pingScore = _mapLatency(avgPing);
     
-    // Si no hay conexión (Ping fallido sistemático), el score es 0
+    // Si no hay conexión, el score es 0
     if (pingMs == -1 && avgPing >= 500) {
         rssiScore = 0;
         pingScore = 0;
@@ -26,7 +35,7 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
     metrics.score = (rssiScore * 0.6) + (pingScore * 0.4);
     metrics.score = constrain(metrics.score, 0, 100);
 
-    // Nuevos Umbrales Operativos (Standard Closing)
+    // Nuevos Umbrales Operativos
     if (metrics.score >= 91) {
         metrics.label = "EXCELLENT";
         metrics.state = EXCELLENT;

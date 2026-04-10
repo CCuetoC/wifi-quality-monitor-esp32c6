@@ -7,26 +7,44 @@ void NetworkService::begin(const char* ssid, const char* pass) {
 
 void NetworkService::update() {
     if (WiFi.status() == WL_CONNECTED) {
+        // Al conectar con éxito, reseteamos el intervalo de backoff
+        if (_reconnectInterval != 10000) {
+            Serial.printf("NetworkService: WiFi stabilized. Resetting backoff to 10s.\n");
+            _reconnectInterval = 10000;
+        }
+
         if (millis() - _lastPingTime >= _pingInterval || _lastPingTime == 0) {
             _performPing();
             _lastPingTime = millis();
         }
     } else {
-        // Si no está conectado, intentamos reconectar periódicamente
-        static unsigned long lastReconnectAttempt = 0;
-        if (millis() - lastReconnectAttempt > 10000) { 
-            Serial.println("NetworkService: Connection lost. Attempting reconnect...");
+        // Implementación de Backoff Exponencial
+        if (millis() - _lastReconnectAttempt > _reconnectInterval) { 
+            Serial.printf("NetworkService: Connection lost. Retrying in %lu s...\n", _reconnectInterval / 1000);
             WiFi.reconnect();
-            lastReconnectAttempt = millis();
+            _lastReconnectAttempt = millis();
+            
+            // Duplicar el intervalo para el siguiente intento, con un tope de 5 min
+            _reconnectInterval = min(_reconnectInterval * 2, _maxReconnectInterval);
         }
     }
 }
 
 void NetworkService::_performPing() {
-    if (Ping.ping("8.8.8.8")) {
-        _lastPingMs = Ping.averageTime();
+    IPAddress gateway = WiFi.gatewayIP();
+    
+    // 1. Ping al Gateway (Local)
+    if (Ping.ping(gateway)) {
+        _lastPingGW = Ping.averageTime();
     } else {
-        _lastPingMs = -1;
+        _lastPingGW = -1;
+    }
+
+    // 2. Ping a Internet (Google)
+    if (Ping.ping("8.8.8.8")) {
+        _lastPingInternet = Ping.averageTime();
+    } else {
+        _lastPingInternet = -1;
     }
 }
 
@@ -37,12 +55,14 @@ NetworkService::NetworkData NetworkService::getData() {
         data.rssi = WiFi.RSSI();
         data.ip = WiFi.localIP().toString();
         data.channel = WiFi.channel();
-        data.pingMs = _lastPingMs;
+        data.pingGW = _lastPingGW;
+        data.pingInternet = _lastPingInternet;
     } else {
         data.rssi = -100;
         data.ip = "0.0.0.0";
         data.channel = 0;
-        data.pingMs = -1;
+        data.pingGW = -1;
+        data.pingInternet = -1;
     }
     return data;
 }

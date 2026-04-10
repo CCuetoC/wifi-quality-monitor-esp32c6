@@ -64,7 +64,7 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, co
     _drawHeader(health.score, health.label, statusColor);
     _drawSignalBar(health.score, statusColor);
     _drawHistoryGraph(history, historySize, circularIndex, statusColor);
-    _drawFooter(net);
+    _drawFooter(net, health);
     
     _canvas.pushSprite(&_tft, 0, 0);
 }
@@ -128,7 +128,7 @@ void DashboardRenderer::_drawHistoryGraph(const int* history, int size, int circ
     }
 }
 
-void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net) {
+void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health) {
     _canvas.setTextSize(1);
     _canvas.setTextColor(TFT_LIGHTGREY);
     _canvas.setTextDatum(bottom_left);
@@ -137,7 +137,23 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net) {
     _canvas.printf("RSSI: %d dBm | IP: %s | CH: %d", net.rssi, net.ip.c_str(), net.channel);
     
     _canvas.setCursor(20, 160);
-    _canvas.printf("LATENCY: %d ms | MODE: INDUSTRIAL DIAGNOSTIC", net.pingMs);
+    const char* stabilityTxt = health.isStable ? "STEADY" : "JITTERY";
+    uint16_t stabColor = health.isStable ? 0x07E0 : 0xFFE0; 
+    
+    _canvas.setTextColor(TFT_LIGHTGREY);
+    _canvas.print("GW: ");
+    _canvas.setTextColor(net.pingGW == -1 ? TFT_RED : TFT_GREEN);
+    _canvas.print(net.pingGW == -1 ? "FAIL" : String(net.pingGW).c_str());
+    
+    _canvas.setTextColor(TFT_LIGHTGREY);
+    _canvas.print(" | EXT: ");
+    _canvas.setTextColor(net.pingInternet == -1 ? TFT_RED : TFT_GREEN);
+    _canvas.print(net.pingInternet == -1 ? "FAIL" : String(net.pingInternet).c_str());
+    
+    _canvas.setTextColor(TFT_LIGHTGREY);
+    _canvas.print(" | ");
+    _canvas.setTextColor(stabColor);
+    _canvas.print(stabilityTxt);
 }
 
 void DashboardRenderer::drawDisconnected() {

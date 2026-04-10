@@ -1,8 +1,12 @@
 #include <Arduino.h>
+#include <esp_task_wdt.h>
 #include "config.h"
 #include "NetworkService.h"
 #include "QualityAnalyzer.h"
 #include "DashboardRenderer.h"
+
+// Configuración de Watchdog (Industrial Robustness)
+#define WDT_TIMEOUT_SECONDS 10
 
 // Instancias de Módulos
 NetworkService network;
@@ -15,6 +19,15 @@ DashboardRenderer renderer;
 void setup() {
     Serial.begin(115200);
     Serial.println("\n--- WIFI QUALITY MONITOR M1 START ---");
+    
+    // Inicializar Watchdog (Grado Industrial)
+    esp_task_wdt_config_t twdt_config = {
+        .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,
+        .idle_core_mask = (1 << 0), // Monitoriza el core 0 (único en C6)
+        .trigger_panic = true
+    };
+    esp_task_wdt_reconfigure(&twdt_config); // Configuración para ESP-IDF 5+
+    esp_task_wdt_add(NULL); // Suscribir el hilo actual (loop)
     
     pinMode(LED_PIN, OUTPUT);
     
@@ -29,15 +42,18 @@ void setup() {
 }
 
 void loop() {
+    // Alimentar al Perro Guardián (Keep-alive)
+    esp_task_wdt_reset();
+    
     // Actualizar Servicios
     network.update();
     
-    // Obtener Datos y Analizar
+    // Obtener Datos y Analizar (Diagnóstico Dual)
     NetworkService::NetworkData netData = network.getData();
     
     if (netData.connected) {
-        // Cálculo de Puntaje Industrial
-        QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingMs);
+        // Usamos la latencia a Internet para medir la calidad real
+        QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
         
         // Registrar en historial
         analyzer.addSample(health.score);
@@ -56,5 +72,5 @@ void loop() {
         digitalWrite(LED_PIN, (millis() % 500 < 250) ? HIGH : LOW);
     }
     
-    delay(200); // Pequeño respiro para el procesador
+    delay(200); 
 }

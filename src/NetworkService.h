@@ -9,7 +9,8 @@ public:
     struct NetworkData {
         bool connected;
         int rssi;
-        int pingMs;
+        int pingGW;          // Ping al Router (Local)
+        int pingInternet;    // Ping a 8.8.8.8 (Internet)
         String ip;
         int channel;
     };
@@ -22,7 +23,13 @@ public:
 private:
     unsigned long _lastPingTime = 0;
     const unsigned long _pingInterval = 5000;
-    int _lastPingMs = -1;
+    int _lastPingGW = -1;
+    int _lastPingInternet = -1;
+    
+    // Backoff Exponencial
+    unsigned long _reconnectInterval = 10000; 
+    unsigned long _lastReconnectAttempt = 0;
+    const unsigned long _maxReconnectInterval = 300000; // 5 minutos
     
     void _performPing();
 };
