@@ -2,10 +2,15 @@
 #include <time.h>
 
 void NetworkService::begin(const char* ssid, const char* pass) {
-    // 1. Inicializar Sistema de Archivos para Logs
+    Serial.println("[DEBUG] network.begin started");
+    
+    // 1. Inicializar Sistema de Archivos (DESACTIVADO PARA TEST)
+    /*
     if (!LittleFS.begin(true)) {
-        Serial.println("LittleFS Mount Failed");
+        Serial.println("[DEBUG] LittleFS Mount Failed");
     }
+    Serial.println("[DEBUG] LittleFS step done");
+    */
 
     // 2. Recuperar Datos Históricos
     _prefs.begin("net_stats", false);
@@ -15,6 +20,7 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     String savedSSID = _prefs.getString("w_ssid", ssid);
     String savedPASS = _prefs.getString("w_pass", pass);
     _prefs.end();
+    Serial.println("[DEBUG] NVS stats loaded");
     
     _startTime = millis();
     _lastSaveTime = millis();
@@ -24,12 +30,16 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     sprintf(logBuf, "Recovered CPU Uptime: %lu ms | Recon: %d", _historicalUptime, _historicalReconnects);
     logEvent("SYS_LOAD", logBuf);
     
-    // 3. Configurar Servidor Web ANTES de WiFi para asegurar que esté listo
+    // 3. Configurar Servidor Web
     _setupWebServer();
+    Serial.println("[DEBUG] Web Server instance ready");
     
     // 4. Iniciar Conexión
     WiFi.begin(savedSSID.c_str(), savedPASS.c_str());
+    Serial.println("[DEBUG] WiFi.begin called");
+    
     configTime(0, 0, "pool.ntp.org");
+    Serial.println("[DEBUG] configTime called");
     
     logEvent("SYSTEM_START", "NetworkService Initialized");
 }
