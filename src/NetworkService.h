@@ -10,7 +10,7 @@
 
 class NetworkService {
 public:
-    NetworkService() : _server(80) {}
+    NetworkService();
 
     struct NetworkData {
         bool connected;
@@ -57,8 +57,8 @@ private:
     char _apSSID[32];
     
     Preferences _prefs;
-    WebServer _server;
-    DNSServer _dnsServer;
+    WebServer* _server = nullptr;
+    DNSServer* _dnsServer = nullptr;
     
     void _performPing();
     void _setupWebServer();
