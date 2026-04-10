@@ -16,9 +16,9 @@ String getCommonCSS() {
     c += ".canvas{flex-grow:1;height:180px;background:#000;border:1px solid #333;margin:0 10px;} .axis-l{width:40px;height:180px;display:flex;flex-direction:column;justify-content:space-between;font-size:0.7em;color:#666;}";
     c += ".axis-r{width:90px;height:180px;display:flex;flex-direction:column;justify-content:space-between;font-size:0.65em;color:#0fc;text-align:left;}";
     c += ".log-container{max-width:1100px;margin:20px auto;border:1px solid #333;border-radius:8px;overflow:hidden;background:#111;}";
-    c += ".log-grid{display:grid;grid-template-columns:110px 110px 180px 1fr;text-align:left;font-family:monospace;font-size:0.85em;}";
+    c += ".log-grid{display:grid;grid-template-columns:110px 110px 180px 1fr;text-align:left;font-family:monospace;font-size:1.05em;}";
     c += ".log-h{background:#00ffcc;color:#000;font-weight:bold;padding:12px;position:sticky;top:0;z-index:10;}";
-    c += ".log-scroll{height:500px;overflow-y:auto;} .log-row{padding:10px;border-bottom:1px solid #222;}";
+    c += ".log-scroll{height:500px;overflow-y:auto;} .log-row{padding:12px 10px;border-bottom:1px solid #222;}";
     c += ".tag{padding:2px 4px;border-radius:3px;font-size:0.7em;font-weight:bold;} .CRITICAL{background:#f44;} .STATE_CHANGE{background:#0fc;color:#000;} .HEARTBEAT{color:#444;font-size:0.8em;}";
     c += "</style>";
     return c;
@@ -188,7 +188,7 @@ void NetworkService::_handleRoot() {
 void NetworkService::_handleLogs() {
     _server->setContentLength(CONTENT_LENGTH_UNKNOWN); _server->send(200, "text/html", "");
     _server->sendContent("<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='5'>" + getCommonCSS() + "</head><body>" + getNav());
-    _server->sendContent("<h2>LOGGER</h2><div class='log-container'><div class='log-grid log-h'><div>DATE</div><div>TIME</div><div>EVENT</div><div>DATA</div></div><div class='log-scroll'>");
+    _server->sendContent("<h2>EVENT LOGGER</h2><div class='log-container'><div class='log-grid log-h'><div>DATE</div><div>TIME</div><div>EVENT</div><div>DATA</div></div><div class='log-scroll'>");
     
     File f = LittleFS.open("/log.txt", FILE_READ);
     if (f.size() > 4000) f.seek(f.size() - 4000);
@@ -204,6 +204,7 @@ void NetworkService::_handleLogs() {
         String l = buf[i]; int s1=l.indexOf('|'), s2=l.indexOf('|', s1+1), s3=l.indexOf('|', s2+1);
         if(s1>0 && s2>0 && s3>0) {
             String dt=l.substring(0,s1), tm=l.substring(s1+1,s2), tp=l.substring(s2+1,s3), msg=l.substring(s3+1);
+            if (tp == "HEARTBEAT") continue; // FILTRO: Ocultar ruido interno en web
             _server->sendContent("<div class='log-grid log-row'><div>"+dt+"</div><div>"+tm+"</div><div><span class='tag "+tp+"'>"+tp+"</span></div><div>"+msg+"</div></div>");
         }
     }
