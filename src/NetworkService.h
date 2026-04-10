@@ -39,6 +39,13 @@ private:
     unsigned long _reconnectInterval = 10000; 
     unsigned long _lastReconnectAttempt = 0;
     const unsigned long _maxReconnectInterval = 300000; // 5 minutos
+    const unsigned long _saveInterval = 600000;         // 10 minutos (NVS Wear Leveling)
+    const unsigned long _maxDisconnectTime = 900000;    // 15 minutos -> ESP.restart()
+    
+    unsigned long _lastSaveTime = 0;
+    unsigned long _lastConnectedTime = 0;
+    unsigned long _historicalUptime = 0;
+    int _historicalReconnects = 0;
     
     Preferences _prefs;
     void _performPing();

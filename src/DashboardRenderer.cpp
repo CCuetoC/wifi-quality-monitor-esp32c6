@@ -156,7 +156,7 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, cons
     _canvas.setCursor(20, 166);
     _canvas.print("UPTIME: ");
     _canvas.print(uptime);
-    _canvas.print(" | DR: ");
+    _canvas.print(" | LT-DR: ");
     _canvas.printf("%.2f/hr", disconnectRate);
 }
 
@@ -179,7 +179,7 @@ void DashboardRenderer::drawDisconnected(String uptime, int reconnects, float di
     // Telemetría básica persistente durante el downtime
     _canvas.setTextColor(TFT_DARKGREY);
     _canvas.setCursor(20, 155);
-    _canvas.printf("UPTIME: %s | DR: %.2f/hr", uptime.c_str(), disconnectRate);
+    _canvas.printf("UPTIME: %s | LT-DR: %.2f/hr", uptime.c_str(), disconnectRate);
     
     _canvas.pushSprite(&_tft, 0, 0);
 }

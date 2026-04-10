@@ -1,53 +1,31 @@
 # WiFi Quality Monitor (ESP32-C6)
-## Monitor de Diagnóstico de Red con Arquitectura Modular
+## Monitor de Diagnóstico de Red con Confiabilidad Industrial
 
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-v6.1.13-orange)
 ![Hardware](https://img.shields.io/badge/Hardware-ESP32--C6-green)
 ![Framework](https://img.shields.io/badge/Framework-Arduino-blue)
 
-Firmware de diagnóstico profesional para el **WaveShare ESP32-C6-LCD-1.47**. Este sistema implementa un monitoreo de doble capa (local y externa) para la detección de cuellos de botella en infraestructuras inalámbricas industriales.
+Firmware de diagnóstico profesional para el **WaveShare ESP32-C6-LCD-1.47**. Este sistema transforma el ESP32 en un instrumento de auditoría de red de largo plazo, capaz de persistir métricas de salud y auto-recuperarse ante fallos críticos de infraestructura.
 
 ![Hardware Demo 1](docs/img/Photo01.jpg)
 
 ---
 
-## Especificaciones y Capacidades
+## Confiabilidad Industrial Real (Módulo 8)
 
-- **Diagnóstico Dual (LAN/WAN)**: Evaluación de latencia independiente al Gateway local y a servidores externos (DNS/Cloud).
-- **Análisis de Calidad Basado en Estándares**: Algoritmo QoS que pondera RSSI y Jitter de latencia.
-- **Resiliencia Industrial**: Implementación de **Watchdog Timer (WDT)** y lógica de reconexión con **Exponential Backoff**.
-- **Visualización Avanzada**: Historial de tendencia integrado mediante Double Buffering (LovyanGFX).
+A diferencia de monitores convencionales, este sistema está diseñado para la autonomía total:
 
----
-
-## Alineación con Estándares y Diseño
-
-El firmware está diseñado siguiendo las recomendaciones de rendimiento de la **ITU-T G.1010** para la clasificación de estados (Latencia/Jitter). Asimismo, la arquitectura aprovecha el stack nativo del ESP32-C6, permitiendo la compatibilidad futura con:
-*   **IEEE 802.11ax (Wi-Fi 6):** Eficiencia en entornos de alta densidad.
-*   **IEEE 802.11k/v/r:** Preparado para lógica de roaming asistido y gestión de recursos de radio.
+- **Persistencia Acumulativa (NVS)**: El sistema registra el **Uptime Total** y el **Historial de Desconexiones** en la memoria no volátil (NVS). Las métricas sobreviven a cortes de energía o reinicios, permitiendo diagnósticos de "24h" y análisis de tendencias semanales reales.
+- **Auto-Recovery (Watchdog de Red)**: Implementa un ciclo de recuperación automática. Si la infraestructura WiFi falla por más de 15 minutos, el sistema ejecuta un `ESP.restart()` controlado para re-inicializar el stack de red y evitar bloqueos lógicos.
+- **Métrica LT-DR (Long-Term Disconnect Rate)**: Proporciona una tasa de desconexión promedio calculada sobre toda la vida útil del dispositivo, ideal para auditorías de estabilidad de ISP.
 
 ---
 
-## Integración y Telemetría (JSON)
+## Especificaciones Técnicas
 
-El sistema está preparado para la exportación de datos en formato JSON, facilitando la integración futura con **Brokers MQTT** o bases de datos como **InfluxDB/Grafana**:
-
-```json
-{
-  "device_id": "ESP32C6_XY",
-  "metrics": {
-    "rssi": -63,
-    "latency_lan": 4,
-    "latency_wan": 32,
-    "stability_jitter": 3,
-    "disconnect_rate": 0.2
-  },
-  "health": {
-    "score": 86,
-    "state": "GOOD"
-  }
-}
-```
+- **Diagnóstico Dual (LAN/WAN)**: Monitoreo ICMP alternativo al Gateway local y DNS externo.
+- **Resiliencia**: Watchdog de hardware (15s) y Watchdog de red (15m).
+- **Aesthetics**: Interfaz "Trend-First" con gráfico de tendencia de 10s (50 muestras) y Double Buffering.
 
 ---
 
@@ -60,37 +38,10 @@ graph TD
     A ---> C(QualityAnalyzer)
     A ---> D(DashboardRenderer)
     
-    B -- "Diagnóstico Dual: GW/WAN" ---> A
-    A -- "Procesamiento QoS" ---> C
-    C -- "Métricas de Salud" ---> A
+    B -- "Persistencia NVS & Recovery" ---> A
+    A -- "Procesamiento QoS + Hysteresis" ---> C
     A -- "Capa de Renderizado" ---> D
 ```
-
----
-
-## Guía de Interpretación Operativa
-
-| Estado | Rango | Interpretación | Color |
-| :--- | :---: | :--- | :---: |
-| **EXCELLENT** | 91-100 | Enlace óptimo. | Verde |
-| **GOOD** | 71-90 | Enlace estable. | Cyan |
-| **DEGRADED** | 41-70 | Interferencia o congestión. | Amarillo |
-| **CRITICAL** | < 40 | Enlace inestable/caído. | Rojo |
-
----
-
-## Benchmarks y Roadmap
-
-| Objetivo | Estado | Descripción |
-| :--- | :--- | :--- |
-| **Stability Test** | Target | Objetivo de 168h de operación continua. |
-| **Hysteresis Logic**| Active | Zona muerta de 5 puntos para estabilidad visual. |
-| **Low Jitter** | Active | Inicialización de buffers (Anti Cold-start). |
-
-### Backlog de Desarrollo
-- [ ] Implementación de cliente MQTT para telemetría remota.
-- [ ] Servidor Web interno para configuración de parámetros QoS.
-- [ ] Alertas SNMP para integración con sistemas de monitoreo IT.
 
 ---
 
