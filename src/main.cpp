@@ -56,16 +56,17 @@ void loop() {
     NetworkService::NetworkData netData = network.getData();
     
     if (netData.connected) {
-        // Usamos la latencia a Internet para medir la calidad real
+        // QoS Logic: Usamos la latencia externa (WAN) para calcular la salud real del enlace
         QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
         
-        // Registrar en historial
+        // Circular Buffer Storage: Registro en el historial para series temporales
         analyzer.addSample(health.score);
         
-        // Renderizar Dashboard con Historial Cronológico
-        renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex());
+        // Rasterization & Display Swap: Renderizar Dashboard con métricas industriales y persistencia
+        renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex(),
+                               network.getUptimeString(), network.getReconnectCount());
         
-        // Control de LED según RSSI
+        // Visual Handshake: Retroalimentación física vía LED según RSSI
         digitalWrite(LED_PIN, (netData.rssi > -70) ? HIGH : LOW);
         
     } else {

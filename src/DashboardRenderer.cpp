@@ -56,7 +56,10 @@ void DashboardRenderer::drawBootScreen(const char* state) {
     _canvas.pushSprite(&_tft, 0, 0);
 }
 
-void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, const int* history, int historySize, int circularIndex) {
+void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, 
+                               const QualityAnalyzer::HealthMetrics& health, 
+                               const int* history, int historySize, int circularIndex,
+                               String uptime, int reconnects) {
     _canvas.fillScreen(TFT_BLACK);
     
     uint16_t statusColor = _getColorForState(health.state);
@@ -64,7 +67,7 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, co
     _drawHeader(health.score, health.label, statusColor);
     _drawSignalBar(health.score, statusColor);
     _drawHistoryGraph(history, historySize, circularIndex, statusColor);
-    _drawFooter(net, health);
+    _drawFooter(net, health, uptime, reconnects);
     
     _canvas.pushSprite(&_tft, 0, 0);
 }
@@ -128,32 +131,42 @@ void DashboardRenderer::_drawHistoryGraph(const int* history, int size, int circ
     }
 }
 
-void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health) {
+void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, int reconnects) {
     _canvas.setTextSize(1);
     _canvas.setTextColor(TFT_LIGHTGREY);
     _canvas.setTextDatum(bottom_left);
     
-    _canvas.setCursor(20, 148);
+    // Rasterization: Primera línea de diagnóstico (PHY y Red)
+    _canvas.setCursor(20, 142);
     _canvas.printf("RSSI: %d dBm | IP: %s | CH: %d", net.rssi, net.ip.c_str(), net.channel);
     
-    _canvas.setCursor(20, 160);
+    // Rasterization: Segunda línea (ICMP Stack y Estabilidad)
+    _canvas.setCursor(20, 154);
     const char* stabilityTxt = health.isStable ? "STEADY" : "JITTERY";
     uint16_t stabColor = health.isStable ? 0x07E0 : 0xFFE0; 
     
-    _canvas.setTextColor(TFT_LIGHTGREY);
     _canvas.print("GW: ");
     _canvas.setTextColor(net.pingGW == -1 ? TFT_RED : TFT_GREEN);
     _canvas.print(net.pingGW == -1 ? "FAIL" : String(net.pingGW).c_str());
-    
-    _canvas.setTextColor(TFT_LIGHTGREY);
-    _canvas.print(" | EXT: ");
-    _canvas.setTextColor(net.pingInternet == -1 ? TFT_RED : TFT_GREEN);
-    _canvas.print(net.pingInternet == -1 ? "FAIL" : String(net.pingInternet).c_str());
-    
     _canvas.setTextColor(TFT_LIGHTGREY);
     _canvas.print(" | ");
+    
+    _canvas.print("EXT: ");
+    _canvas.setTextColor(net.pingInternet == -1 ? TFT_RED : TFT_GREEN);
+    _canvas.print(net.pingInternet == -1 ? "FAIL" : String(net.pingInternet).c_str());
+    _canvas.setTextColor(TFT_LIGHTGREY);
+    _canvas.print(" | ");
+    
     _canvas.setTextColor(stabColor);
     _canvas.print(stabilityTxt);
+    
+    // Bus Arbitration: Tercera línea (Métricas Industriales / Uptime)
+    _canvas.setTextColor(TFT_DARKGREY);
+    _canvas.setCursor(20, 166);
+    _canvas.print("UPTIME: ");
+    _canvas.print(uptime);
+    _canvas.print(" | RECON: ");
+    _canvas.print(reconnects);
 }
 
 void DashboardRenderer::drawDisconnected() {

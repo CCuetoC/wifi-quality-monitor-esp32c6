@@ -1,27 +1,30 @@
 #include "NetworkService.h"
+#include <time.h>
+#include <Preferences.h>
+
+Preferences preferences;
 
 void NetworkService::begin(const char* ssid, const char* pass) {
     if (WiFi.status() == WL_CONNECTED) return;
+    
+    // NVS Persistence: Recuperar contador de reconexiones históricas
+    preferences.begin("net_stats", false);
+    _reconnectCount = preferences.getInt("recon", 0);
+    
+    _startTime = millis();
+    
+    // PHY Layer: Inicio de negociación WiFi 6
     WiFi.begin(ssid, pass);
+    
+    // NTP Synchronization: Configuración de marca de tiempo para logs
+    configTime(0, 0, "pool.ntp.org");
+    logEvent("SYSTEM_START", "NetworkService Initialized");
 }
 
 void NetworkService::update() {
-    if (WiFi.status() == WL_CONNECTED) {
-        // Al conectar con éxito, reseteamos el intervalo de backoff
-        if (_reconnectInterval != 10000) {
-            Serial.printf("NetworkService: WiFi stabilized. Resetting backoff to 10s.\n");
-            _reconnectInterval = 10000;
-        }
-
-        if (millis() - _lastPingTime >= _pingInterval || _lastPingTime == 0) {
-            _performPing();
-            _lastPingTime = millis();
-        }
-    } else {
-        // Implementación de Backoff Exponencial
-        if (millis() - _lastReconnectAttempt > _reconnectInterval) { 
-            Serial.printf("NetworkService: Connection lost. Retrying in %lu s...\n", _reconnectInterval / 1000);
-            WiFi.reconnect();
+    // State Machine: Gestión de reconexión con Exponential Backoff
+    if (WiFi.status() != WL_CONNECTED) {
+        if (millis() - _lastReconnectAttempt > _reconnectInterval) {
             _lastReconnectAttempt = millis();
             
             // Duplicar el intervalo para el siguiente intento, con un tope de 5 min

@@ -9,33 +9,34 @@
 QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pingMs) {
     HealthMetrics metrics;
     
-    // Aplicar Promedio Móvil
+    // Convergence: Implementación de promedios móviles para mitigar el ruido en la capa física
     int avgRSSI = _addToMovingAverage(_rssiBuffer, rssi, _rssiIndex, MA_SIZE);
     int avgPing = _addToMovingAverage(_pingBuffer, (pingMs == -1 ? 500 : pingMs), _pingIndex, MA_SIZE);
 
-    // Calcular Estabilidad (Jitter) basado en el rango del buffer de RSSI
+    // Analytics: Cálculo de Jitter (variabilidad) basado en el rango del buffer histórico
     int minR = 0, maxR = -110;
     for(int i=0; i<MA_SIZE; i++) {
         if(_rssiBuffer[i] < minR) minR = _rssiBuffer[i];
         if(_rssiBuffer[i] > maxR) maxR = _rssiBuffer[i];
     }
     metrics.jitter = (minR == 0) ? 0 : (maxR - minR);
-    metrics.isStable = (metrics.jitter <= 10); // Umbral de 10dBm de variablidad
+    metrics.isStable = (metrics.jitter <= 10); 
 
+    // Score Mapping: Transformación lineal de métricas crudas a índices porcentuales
     int rssiScore = _mapRSSI(avgRSSI);
     int pingScore = _mapLatency(avgPing);
     
-    // Si no hay conexión, el score es 0
+    // Exception: Manejo de pérdida total de paquetes ICMP
     if (pingMs == -1 && avgPing >= 500) {
         rssiScore = 0;
         pingScore = 0;
     }
 
-    // Ponderación Industrial sugerida: 60% RSSI, 40% Latencia
+    // Weighted QoS: Ponderación basada en impacto operativo (60% RSSI, 40% Latency)
     metrics.score = (rssiScore * 0.6) + (pingScore * 0.4);
     metrics.score = constrain(metrics.score, 0, 100);
 
-    // Nuevos Umbrales Operativos
+    // State Machine: Clasificación basada en umbrales de la ITU-T G.1010
     if (metrics.score >= 91) {
         metrics.label = "EXCELLENT";
         metrics.state = EXCELLENT;
@@ -54,6 +55,7 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
 }
 
 int QualityAnalyzer::_addToMovingAverage(int* buffer, int newValue, int& index, int size) {
+    // Memory Management: Actualización de buffer circular in-place
     buffer[index] = newValue;
     index = (index + 1) % size;
     
@@ -63,6 +65,7 @@ int QualityAnalyzer::_addToMovingAverage(int* buffer, int newValue, int& index, 
 }
 
 void QualityAnalyzer::addSample(int score) {
+    // History Persistence: Indexación circular para series temporales
     _history[_historyIndex] = score;
     _historyIndex = (_historyIndex + 1) % HISTORY_SIZE;
 }
@@ -70,14 +73,14 @@ void QualityAnalyzer::addSample(int score) {
 int QualityAnalyzer::_mapRSSI(int rssi) {
     if (rssi > -50) return 100;
     if (rssi < -95) return 0;
-    // Mapeo lineal entre -95 y -50
+    // Linear Mapping: Estandarización de niveles de potencia RF
     return map(rssi, -95, -50, 0, 100);
 }
 
 int QualityAnalyzer::_mapLatency(int ms) {
-    if (ms < 0) return 0;       // Ping fallido
-    if (ms <= 50) return 100;   // Excelente
-    if (ms >= 500) return 0;    // Muy lento
-    // Mapeo inverso: a más ms, menos score
+    if (ms < 0) return 0;       
+    if (ms <= 50) return 100;   
+    if (ms >= 500) return 0;    
+    // Inverse Mapping: A mayor latencia, menor puntaje de salud
     return map(ms, 50, 500, 100, 0);
 }

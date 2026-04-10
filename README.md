@@ -1,29 +1,60 @@
 # WiFi Quality Monitor (ESP32-C6)
-## Professional Network Diagnostic Tool for Industrial Environments
+## Monitor de Diagnóstico de Red con Arquitectura Modular
 
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-v6.1.13-orange)
-![Framework](https://img.shields.io/badge/Framework-Arduino-blue)
 ![Hardware](https://img.shields.io/badge/Hardware-ESP32--C6-green)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+![Framework](https://img.shields.io/badge/Framework-Arduino-blue)
 
-Este proyecto implementa un monitor de calidad de red en tiempo real diseñado para entornos donde la estabilidad de la conexión es crítica. A diferencia de los monitores convencionales basados solo en RSSI, esta herramienta utiliza un **diagnóstico de doble capa (LAN/WAN)** para identificar cuellos de botella exactos.
+Firmware de diagnóstico para el **WaveShare ESP32-C6-LCD-1.47**. El sistema implementa un monitoreo de doble capa (local y externa) para la detección de cuellos de botella en infraestructuras de red inalámbrica.
 
 ![Hardware Demo 1](docs/img/Photo01.jpg)
 
 ---
 
-## Características Técnicas
+## Especificaciones y Capacidades
 
-- **Diagnóstico de Doble Capa**: Monitoreo simultáneo de latencia local (Gateway) y externa (DNS/Cloud), permitiendo diferenciar fallos de infraestructura local de problemas de ISP.
-- **Análisis de Calidad Basado en Estándares**: Algoritmo de puntuación (0-100%) que pondera la potencia de señal (RSSI) y el jitter de latencia.
-- **Optimización Visual**: Implementación de Double Buffering mediante la librería LovyanGFX para una actualización de pantalla fluida a 1.47" sin parpadeos.
-- **Resiliencia Industrial**: Sistema de auto-recuperación ante pérdida de señal y Watchdog Timer (WDT) activo para garantizar operación 24/7 sin bloqueos.
+- **Diagnóstico Dual (LAN/WAN)**: Monitoreo de latencia independiente al Gateway local (`WiFi.gatewayIP()`) y a servidores externos (`8.8.8.8`).
+- **Lógica de Calidad (QoS)**: Cálculo de salud de red basado en promedios móviles (10 muestras) para RSSI y Latencia.
+- **Resiliencia**: Implementación de **Watchdog Timer (WDT)** configurado a 15s y lógica de reconexión con **Exponential Backoff** (10s a 300s).
+- **Renderizado**: Gestión de pantalla vía LovyanGFX con Double Buffering para evitar parpadeos en actualizaciones de alta frecuencia.
 
 ---
 
-## Arquitectura de Software
+## Algoritmo de Calidad (Ecuación QoS)
 
-El sistema sigue una arquitectura modular para facilitar la escalabilidad y el mantenimiento:
+El puntaje de salud (`score`) se calcula mediante la ponderación de dos factores críticos:
+
+$$Quality Score = (RSSI_{score} \times 0.6) + (Latency_{score} \times 0.4)$$
+
+- **RSSI Score**: Mapeado lineal de -95dBm (0%) a -50dBm (100%).
+- **Latency Score**: Mapeado inverso de 500ms (0%) a 50ms (100%).
+
+---
+
+## Ejemplo de Salida de Datos (JSON)
+
+Para facilitar integraciones futuras, el sistema procesa los datos bajo la siguiente estructura:
+
+```json
+{
+  "device_id": "ESP32C6_0D90",
+  "status": "CONNECTED",
+  "metrics": {
+    "rssi": -63,
+    "latency_lan": 4,
+    "latency_wan": 32,
+    "stability_jitter": 3
+  },
+  "health": {
+    "score": 86,
+    "state": "GOOD"
+  }
+}
+```
+
+---
+
+## 🏗️ Arquitectura del Sistema
 
 ```mermaid
 graph TD
@@ -31,86 +62,34 @@ graph TD
     A --> C[QualityAnalyzer]
     A --> D[DashboardRenderer]
     
-    B -->|Diagnóstico Dual: GW/WAN| A
-    A -->|Procesamiento QoS| C
-    C -->|Métricas de Salud| A
-    A -->|Capa de Renderizado| D
+    B -->|Métricas LAN/WAN| A
+    A -->|Datos Crudos| C
+    C -->|Calculo QoS & Estado| A
+    A -->|Frame Buffer| D
 ```
 
-1. **NetworkService**: Gestión de la pila WiFi 6 (802.11ax) y reconexión automática con exponential backoff.
-2. **QualityAnalyzer**: Motor de cálculo que procesa promedios móviles de latencia, potencia de señal e índice de estabilidad.
-3. **DashboardRenderer**: Capa de presentación desacoplada de la lógica de negocio para permitir cambios de hardware de visualización con mínimo impacto.
+---
+
+## 🚫 Limitaciones Técnicas (Caveats)
+
+Este dispositivo es una herramienta de diagnóstico de capa de aplicación y transporte. **No realiza:**
+1. **Análisis de Espectro RF**: No detecta interferencias en canales adyacentes a nivel físico.
+2. **Medición de Throughput**: El sistema no realiza pruebas de ancho de banda (Upload/Download speed).
+3. **Detección de Packet Loss**: La métrica actual se basa en latencia de ICMP Echo; no contabiliza pérdida de paquetes a largo plazo.
 
 ---
 
-## Metodología de Desarrollo: Hybrid Rapid Prototyping
+## 🗺️ Desarrollo y Metodología
 
-Este repositorio es un caso de estudio en **Ingeniería Asistida por LLM**. El 100% del código fue generado mediante la orquestación de modelos de lenguaje bajo supervisión arquitectónica humana.
+Estructurado mediante un flujo de trabajo asistido por LLM (Antigravity), priorizando la consistencia arquitectónica sobre la codificación manual.
 
-**Impacto de la metodología:**
-- **Eficiencia**: Reducción del tiempo de desarrollo de días a horas.
-- **Calidad**: Estructura modular consistente y documentación técnica integrada desde la primera versión.
-- **Enfoque**: El talento humano se centró en la definición de requerimientos técnicos y estándares industriales, delegando la ejecución sintáctica a la IA (**Antigravity by Google**).
-
----
-
-## Benchmarks de Desempeño (Industrial Ready)
-
-| Métrica | Valor | Estado |
-| :--- | :--- | :---: |
-| **Uso de Heap** | ~180 KB Free | ✅ Estable |
-| **Resiliencia** | Watchdog 15s | ✅ Auto-recovery |
-| **Diagnóstico** | Dual (LAN/WAN) | ✅ Activo |
-| **Ciclo Main Loop**| < 250 ms | ✅ Real-time |
+- **v2.1**: Optimización de WDT y diagnóstico LAN/WAN.
+- **v2.0**: Implementación de historial gráfico fluido.
+- **v1.0**: Prototipo base de conectividad.
 
 ---
 
-## 📸 Galería del Proyecto
-
-| Front View | Side View | Active Monitoring |
-| :---: | :---: | :---: |
-| ![Front](docs/img/Photo02.jpg) | ![Side](docs/img/Photo03.jpg) | ![Action](docs/img/Photo01.jpg) |
-
----
-
-## Especificaciones de Hardware
-
-| Componente | Detalle |
-| :--- | :--- |
-| **MCU** | ESP32-C6 (Soporte nativo para WiFi 6) |
-| **Display** | 1.47" LCD (ST7789, 172x320 px) |
-| **Frecuencia** | 160MHz RISC-V |
-| **Pines SPI** | SCK(7), MOSI(6), CS(14), DC(15), RST(21) |
-
----
-
-## 🗺️ Roadmap de Desarrollo
-
-- [x] **v2.0**: Implementación de diagnóstico LAN/WAN y Robusta Industrial (WDT).
-- [x] **v1.0**: Prototipo inicial con monitoreo básico de RSSI.
-- [ ] **v3.0**: Integración MQTT / SCADA industrial.
-- [ ] **v4.0**: Servidor Web Embebido para monitoreo remoto.
-
----
-
-## ⚖️ Tabla Comparativa Técnica
-
-| Característica | Este Monitor (Hardware) | WiFi Analyzer (Android App) | Router Admin Panel |
-| :--- | :---: | :---: | :---: |
-| **Monitoreo 24/7** | ✅ Siempre activo | ❌ Consume batería | ❌ Requiere Login |
-| **Latencia Dual** | ✅ LAN + WAN | ❌ Solo RSSI | ⚠️ Solo local |
-| **Índice de Estabilidad**| ✅ Jitter Analytics | ❌ No | ❌ No |
-| **Resistencia Industrial**| ✅ Hardware Watchdog | ❌ No | ✅ Sí |
-
----
-
-## Configuración y Despliegue
-
-1. **Clonar el repositorio.**
-2. **Configurar Credenciales**: Renombrar `.env.example` a `.env` y configurar las credenciales de red.
-3. **Compilación y Carga**: Usar PlatformIO (`pio run --target upload`).
-
----
-
-## Licencia
-Este proyecto está bajo la licencia **MIT**. Desarrollado y orquestado por [César Cueto](https://github.com/CCuetoC).
+## 🚀 Instalación
+1. Renombrar `.env.example` a `.env`.
+2. Configurar credenciales.
+3. Cargar mediante PlatformIO (`pio run -t upload`).

@@ -19,8 +19,15 @@ public:
     void update();
     NetworkData getData();
     bool isConnected();
+    
+    // Industrial Logging & Persistence
+    void logEvent(const char* type, const char* data);
+    String getUptimeString();
+    int getReconnectCount();
 
 private:
+    unsigned long _startTime = 0;
+    int _reconnectCount = 0;
     unsigned long _lastPingTime = 0;
     const unsigned long _pingInterval = 5000;
     int _lastPingGW = -1;
