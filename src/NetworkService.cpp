@@ -17,6 +17,9 @@ String getCommonCSS() {
     c += ".btn{background:#00ffcc;color:#000;padding:12px 25px;border:none;border-radius:5px;font-weight:bold;cursor:pointer;text-decoration:none;display:inline-block;margin:15px 0;}";
     c += "input,select{background:#111;color:#fff;border:1px solid #333;padding:10px;border-radius:5px;width:280px;margin:5px 0;}";
     c += ".scan-item{padding:10px;border-bottom:1px solid #222;cursor:pointer;text-align:left;} .scan-item:hover{background:#222;}";
+    c += ".log-win{max-width:900px; margin:20px auto; background:#111; border:1px solid #333; border-radius:8px; height:500px; overflow-y:auto; overflow-x:hidden;}";
+    c += "table{width:100%; border-collapse:collapse; background:#111; font-family:monospace; font-size:0.85em; text-align:left;}";
+    c += "thead th{position:sticky; top:0; background:#00ffcc; color:#000; z-index:10;}";
     c += "</style>";
     return c;
 }
@@ -235,7 +238,8 @@ void NetworkService::_handleRoot() {
 void NetworkService::_handleLogs() {
     if (!_fsReady) { _server->send(500, "text/plain", "FS Error"); return; }
     File f = LittleFS.open("/log.txt", FILE_READ);
-    String h = "<html><head><meta charset='UTF-8'>" + getCommonCSS() + "</head><body>" + getNav() + "<h2>System Audit Logs</h2><table><tr><th>DATE</th><th>TIME</th><th>EVENT</th><th>DATA</th></tr>";
+    String h = "<html><head><meta charset='UTF-8'>" + getCommonCSS() + "</head><body>" + getNav();
+    h += "<h2>System Audit Logs</h2><div class='log-win'><table><thead><tr><th>DATE</th><th>TIME</th><th>EVENT</th><th>DATA</th></tr></thead><tbody>";
     while (f.available()) {
         String l = f.readStringUntil('\n'); int s1=l.indexOf('|'), s2=l.indexOf('|', s1+1), s3=l.indexOf('|', s2+1);
         if (s1>0 && s2>0 && s3>0) {
@@ -243,7 +247,7 @@ void NetworkService::_handleLogs() {
             h += "<tr><td>"+dt+"</td><td>"+tm+"</td><td><span class='tag "+tp+"'>"+tp+"</span></td><td>"+msg+"</td></tr>";
         }
     }
-    f.close(); h += "</table></body></html>";
+    f.close(); h += "</tbody></table></div></body></html>";
     _server->send(200, "text/html", h);
 }
 
