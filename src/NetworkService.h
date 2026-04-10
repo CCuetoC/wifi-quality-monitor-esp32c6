@@ -29,6 +29,7 @@ public:
     // Industrial Logging & Persistence
     void logEvent(const char* type, const char* data);
     String getUptimeString();
+    int getBootPhase() { return _bootPhase; }
     int getReconnectCount();
     float getDisconnectRate();
 

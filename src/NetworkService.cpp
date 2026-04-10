@@ -147,7 +147,7 @@ void NetworkService::_setupWebServer() {
     _server->on("/config", [this]() { _handleConfig(); });
     _server->on("/graph", [this]() {
         // Redirección simple o renderizado directo. César quiere ver la gráfica.
-        String h = "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='10'>";
+        String h = "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='5'>";
         h += getCommonCSS();
         h += "</head><body>" + getNav() + "<h2>Quality Trend (Last 2.5 min)</h2>";
         h += "<div style='background:#111; padding:20px; border-radius:10px; display:inline-block; border:1px solid #333;'>";

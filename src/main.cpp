@@ -54,13 +54,19 @@ void loop() {
         
         // Recuperación de Historial (Solo una vez tras el arranque de archivos)
         static bool historyLoaded = false;
-        if (!historyLoaded && millis() > 12000) { // Tras Phase 1
-            int hist[50], idx;
-            if (network.loadTrend(hist, 50, &idx)) {
-                analyzer.loadHistory(hist, 50, idx);
-                network.logEvent("SYS_STATUS", "Visual History Restored");
+        if (!historyLoaded) {
+            if (network.getBootPhase() >= 1) {
+                int hist[50], idx;
+                if (network.loadTrend(hist, 50, &idx)) {
+                    analyzer.loadHistory(hist, 50, idx);
+                    network.logEvent("SYS_STATUS", "Visual History Restored");
+                }
+                historyLoaded = true;
+            } else {
+                // Mantener pantalla de carga mientras LittleFS despierta
+                renderer.drawBootScreen("RESTORING HISTORY...");
+                return;
             }
-            historyLoaded = true;
         }
 
         if (netData.connected) {
