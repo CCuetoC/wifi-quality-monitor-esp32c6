@@ -65,11 +65,14 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
     uint16_t statusColor = _getColorForState(health.state);
     
     _drawHeader(health.score, health.label, statusColor);
-    _drawSignalBar(health.score, statusColor);
     _drawHistoryGraph(history, historySize, circularIndex, statusColor);
 
     // Etiqueta de Ventana Temporal (Claridad Operativa)
-    _canvas.drawString("TREND: 50 SAMPLES (10s)", _canvas.width() - 22, 62);
+    _canvas.setCursor(_canvas.width() - 22, 115);
+    _canvas.setTextSize(1);
+    _canvas.setTextColor(TFT_DARKGREY);
+    _canvas.setTextDatum(top_right);
+    _canvas.drawString("TREND: 50 SAMPLES (10s)", _canvas.width() - 20, 48);
     
     _drawFooter(net, health, uptime, reconnects, disconnectRate);
     
@@ -100,21 +103,11 @@ void DashboardRenderer::_drawHeader(int score, const char* label, uint16_t color
     _canvas.drawString(label, _canvas.width() - 20, 15);
 }
 
-void DashboardRenderer::_drawSignalBar(int score, uint16_t color) {
-    int barY = 42; 
-    int barWidth = 280;
-    int barHeight = 8;
-    int x = (_canvas.width() - barWidth) / 2;
-    
-    _canvas.drawRect(x, barY, barWidth, barHeight, 0x3186);
-    _canvas.fillRect(x + 1, barY + 1, ((barWidth - 2) * score) / 100, barHeight - 2, color);
-}
-
 void DashboardRenderer::_drawHistoryGraph(const int* history, int size, int circularIndex, uint16_t color) {
     int graphX = 20;
-    int graphY = 60;
+    int graphY = 45; // Subimos el gráfico
     int graphW = 280;
-    int graphH = 80;
+    int graphH = 90; // Aumentamos la altura
 
     _canvas.drawRect(graphX, graphY, graphW, graphH, 0x18C3);
     for(int i=1; i<4; i++) {
