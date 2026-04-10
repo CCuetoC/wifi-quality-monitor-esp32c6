@@ -17,6 +17,10 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     _lastSaveTime = millis();
     _lastConnectedTime = millis();
     
+    char logBuf[64];
+    sprintf(logBuf, "Recovered Uptime: %lu ms | Recon: %d", _historicalUptime, _historicalReconnects);
+    logEvent("SYS_LOAD", logBuf);
+    
     WiFi.begin(ssid, pass);
     configTime(0, 0, "pool.ntp.org");
     logEvent("SYSTEM_START", "NetworkService Initialized");
@@ -60,6 +64,10 @@ void NetworkService::update() {
             _prefs.begin("net_stats", false);
             _prefs.putInt("recon", _reconnectCount);
             _prefs.putInt("t_recon", _historicalReconnects + _reconnectCount);
+            // También guardamos el uptime acumulado hasta este fallo
+            _historicalUptime += (millis() - _lastSaveTime);
+            _lastSaveTime = millis();
+            _prefs.putULong("t_uptime", _historicalUptime);
             _prefs.end();
             logEvent("LINK_DOWN", "Attempting Reconnection");
         }
