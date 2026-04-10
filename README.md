@@ -67,15 +67,16 @@ Estructura lista para integración con **Brokers MQTT** o bases de datos NoSQL (
 ## Arquitectura del Sistema
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'edgeFontSize': '9px'}}}%%
 graph TD
-    A[main.cpp] --> B[NetworkService]
-    A --> C[QualityAnalyzer]
-    A --> D[DashboardRenderer]
+    A(main.cpp) ---> B(NetworkService)
+    A ---> C(QualityAnalyzer)
+    A ---> D(DashboardRenderer)
     
-    B -->|Diagnóstico Dual: GW/WAN| A
-    A -->|Procesamiento QoS| C
-    C -->|Métricas de Salud| A
-    A -->|Capa de Renderizado| D
+    B -- "Diagnóstico Dual: GW/WAN" ---> A
+    A -- "Procesamiento QoS" ---> C
+    C -- "Métricas de Salud" ---> A
+    A -- "Capa de Renderizado" ---> D
 ```
 
 ---
