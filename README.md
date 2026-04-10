@@ -53,7 +53,7 @@ Estructura lista para integración con **Brokers MQTT** o bases de datos NoSQL (
     "latency_lan": 4,
     "latency_wan": 32,
     "stability_jitter": 3,
-    "reliability_rate": 0.2
+    "disconnect_rate": 0.2
   },
   "health": {
     "score": 86,
@@ -107,7 +107,7 @@ Este dispositivo es una herramienta de diagnóstico de capa de aplicación y tra
 | :--- | :--- | :---: |
 | **Stability Test** | > 168h Continuas | Passed |
 | **Uptime Management**| Hardware Watchdog | Active |
-| **State Stability** | Hysteresis (5 pts) | Active |
+| **Link Stability** | Hysteresis (5 pts) | Active |
 
 ---
 

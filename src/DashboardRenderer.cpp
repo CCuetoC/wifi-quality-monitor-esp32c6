@@ -59,7 +59,7 @@ void DashboardRenderer::drawBootScreen(const char* state) {
 void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, 
                                const QualityAnalyzer::HealthMetrics& health, 
                                const int* history, int historySize, int circularIndex,
-                               String uptime, int reconnects, float reliability) {
+                               String uptime, int reconnects, float disconnectRate) {
     _canvas.fillScreen(TFT_BLACK);
     
     uint16_t statusColor = _getColorForState(health.state);
@@ -74,7 +74,7 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
     _canvas.setTextDatum(top_right);
     _canvas.drawString("TREND: 60 SAMPLES (30s)", _canvas.width() - 22, 62);
     
-    _drawFooter(net, health, uptime, reconnects, reliability);
+    _drawFooter(net, health, uptime, reconnects, disconnectRate);
     
     _canvas.pushSprite(&_tft, 0, 0);
 }
@@ -138,7 +138,7 @@ void DashboardRenderer::_drawHistoryGraph(const int* history, int size, int circ
     }
 }
 
-void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, int reconnects, float reliability) {
+void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, int reconnects, float disconnectRate) {
     _canvas.setTextSize(1);
     _canvas.setTextColor(TFT_LIGHTGREY);
     _canvas.setTextDatum(bottom_left);
@@ -172,8 +172,8 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, cons
     _canvas.setCursor(20, 166);
     _canvas.print("UPTIME: ");
     _canvas.print(uptime);
-    _canvas.print(" | REL: ");
-    _canvas.printf("%.1f/hr", reliability);
+    _canvas.print(" | DR: ");
+    _canvas.printf("%.1f/hr", disconnectRate);
 }
 
 void DashboardRenderer::drawDisconnected() {
