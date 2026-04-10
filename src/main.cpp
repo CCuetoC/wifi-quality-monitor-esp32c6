@@ -29,15 +29,16 @@ void setup() {
         };
         esp_task_wdt_reconfigure(&twdt_config);
     #else
-        esp_task_wdt_init(WDT_TIMEOUT_SECONDS, true);
     #endif
-    esp_task_wdt_add(NULL); 
     
     pinMode(LED_PIN, OUTPUT);
     renderer.begin();
     renderer.drawBootScreen("INITIALIZING...");
     
     network.begin(WIFI_SSID, WIFI_PASS);
+    
+    // Activar el Watchdog SOLO cuando estemos listos para el loop
+    esp_task_wdt_add(NULL); 
     Serial.println("System Ready.");
 }
 
