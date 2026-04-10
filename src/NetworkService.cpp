@@ -53,8 +53,8 @@ void NetworkService::update() {
 
     // FASE 3: NTP & Time Sync (T+20s)
     if (_bootPhase == 2 && uptime > 20000) {
-        Serial.println("[PHASING] Step 3: NTP Sync...");
-        configTime(0, 0, "pool.ntp.org");
+        Serial.println("[PHASING] Step 3: NTP Sync (Peru Time)...");
+        configTime(-5 * 3600, 0, "pool.ntp.org");
         _bootPhase = 3;
         logEvent("SYS_PHASE", "All Systems Operational");
     }
