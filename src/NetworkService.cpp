@@ -2,15 +2,11 @@
 #include <time.h>
 
 void NetworkService::begin(const char* ssid, const char* pass) {
-    Serial.println("[DEBUG] network.begin started");
-    
-    // 1. Inicializar Sistema de Archivos (DESACTIVADO PARA TEST)
-    /*
-    if (!LittleFS.begin(true)) {
-        Serial.println("[DEBUG] LittleFS Mount Failed");
+    // 1. Inicializar Sistema de Archivos con protección de booteo
+    _fsReady = LittleFS.begin(true);
+    if (!_fsReady) {
+        Serial.println("WARNING: LittleFS Mount Failed. Continuous logs disabled.");
     }
-    Serial.println("[DEBUG] LittleFS step done");
-    */
 
     // 2. Recuperar Datos Históricos
     _prefs.begin("net_stats", false);
@@ -20,7 +16,6 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     String savedSSID = _prefs.getString("w_ssid", ssid);
     String savedPASS = _prefs.getString("w_pass", pass);
     _prefs.end();
-    Serial.println("[DEBUG] NVS stats loaded");
     
     _startTime = millis();
     _lastSaveTime = millis();
@@ -32,20 +27,15 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     
     // 3. Configurar Servidor Web
     _setupWebServer();
-    Serial.println("[DEBUG] Web Server instance ready");
     
     // 4. Iniciar Conexión
     WiFi.begin(savedSSID.c_str(), savedPASS.c_str());
-    Serial.println("[DEBUG] WiFi.begin called");
-    
     configTime(0, 0, "pool.ntp.org");
-    Serial.println("[DEBUG] configTime called");
     
     logEvent("SYSTEM_START", "NetworkService Initialized");
 }
 
 void NetworkService::update() {
-    // Prioridad Máxima: Atender peticiones web
     _server.handleClient();
     
     bool connected = (WiFi.status() == WL_CONNECTED);
@@ -60,10 +50,8 @@ void NetworkService::update() {
         if (_isConfigMode) {
             WiFi.softAPdisconnect(true);
             _isConfigMode = false;
-            logEvent("SYS_MODE", "Switching back to STA Mode");
         }
     } else {
-        // Si no hay conexión tras 30s, activar modo AP/Config
         if (millis() - _startTime > 30000 && !connected && !_isConfigMode) {
             _isConfigMode = true;
             WiFi.softAP("WiFi-Monitor-C6");
@@ -72,7 +60,7 @@ void NetworkService::update() {
         }
 
         if (millis() - _lastConnectedTime > _maxDisconnectTime) {
-            logEvent("SYS_CRITICAL", "Link Lost > 15m. Rebooting for stability...");
+            logEvent("SYS_CRITICAL", "Link Lost > 15m. Rebooting...");
             delay(1000);
             ESP.restart();
         }
@@ -85,10 +73,9 @@ void NetworkService::update() {
         _prefs.begin("net_stats", false);
         _prefs.putULong("t_uptime", _historicalUptime);
         _prefs.end();
-        logEvent("SYS_MAINT", "Stats persisted to NVS");
     }
 
-    // Lógica de Reconexión & Pings (Solo si no estamos en modo AP puro de falla)
+    // Lógica de Reconexión
     if (!connected) {
         if (millis() - _lastReconnectAttempt > _reconnectInterval) {
             _lastReconnectAttempt = millis();
@@ -104,8 +91,6 @@ void NetworkService::update() {
         }
     } else {
         if (_reconnectInterval != 10000) _reconnectInterval = 10000;
-        
-        // Pings espaciados para no saturar el WebServer
         if (millis() - _lastPingTime > _pingInterval) {
             _lastPingTime = millis();
             _performPing(); 
@@ -125,10 +110,13 @@ void NetworkService::logEvent(const char* type, const char* data) {
     sprintf(fullMsg, "[%s] EVENT: %s | %s", timeStr, type, data);
     Serial.println(fullMsg);
     
-    File file = LittleFS.open("/log.txt", FILE_APPEND);
-    if (file) {
-        file.println(fullMsg);
-        file.close();
+    // Escritura segura: solo si LittleFS está listo
+    if (_fsReady) {
+        File file = LittleFS.open("/log.txt", FILE_APPEND);
+        if (file) {
+            file.println(fullMsg);
+            file.close();
+        }
     }
 }
 
@@ -145,7 +133,7 @@ void NetworkService::_setupWebServer() {
             _prefs.putString("w_ssid", s);
             _prefs.putString("w_pass", p);
             _prefs.end();
-            _server.send(200, "text/html", "<b>Config OK.</b> Rebooting...");
+            _server.send(200, "text/html", "<b>Configuration Saved.</b> Rebooting...");
             delay(1000);
             ESP.restart();
         }
@@ -161,7 +149,7 @@ void NetworkService::_setupWebServer() {
     });
     
     _server.begin();
-    logEvent("WEB_READY", "HTTP Server listening on Port 80");
+    logEvent("WEB_READY", "Listening on Port 80");
 }
 
 void NetworkService::_handleRoot() {
@@ -171,16 +159,20 @@ void NetworkService::_handleRoot() {
     html += "h1{color:#00ffcc;} .val{font-size:2.5em;font-weight:bold;color:#fff;} a{color:#00ffcc;text-decoration:none;font-weight:bold;}</style></head><body>";
     html += "<h1>Industrial WiFi Monitor</h1>";
     html += "<div class='card'><div>UPTIME ACUMULADO</div><div class='val'>" + getUptimeString() + "</div></div>";
-    html += "<div class='card'><div>CONEXION</div><div class='val'>" + String(isConnected()?"ONLINE":"OFFLINE") + "</div></div>";
-    html += "<br><br><a href='/logs'>[ VER HISTORIAL DE LOGS ]</a><br><br><a href='/config'>[ RECONFIGURAR RED ]</a>";
+    html += "<div class='card'><div>ESTADO</div><div class='val'>" + String(isConnected()?"ONLINE":"OFFLINE") + "</div></div>";
+    html += "<br><br><a href='/logs'>[ VER LOGS ]</a> | <a href='/config'>[ CONFIGURAR ]</a>";
     html += "</body></html>";
     _server.send(200, "text/html", html);
 }
 
 void NetworkService::_handleLogs() {
+    if (!_fsReady) {
+        _server.send(500, "text/plain", "Flash Storage Error");
+        return;
+    }
     File file = LittleFS.open("/log.txt", FILE_READ);
     if (!file) {
-        _server.send(500, "text/plain", "Logs not available");
+        _server.send(200, "text/plain", "Log file empty or not found yet.");
         return;
     }
     _server.streamFile(file, "text/plain");
@@ -188,11 +180,11 @@ void NetworkService::_handleLogs() {
 }
 
 void NetworkService::_handleConfig() {
-    String html = "<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>body{font-family:sans-serif;text-align:center;padding:20px;}</style></head><body>";
-    html += "<h1>Network Config</h1><form action='/save' method='POST'>";
-    html += "SSID:<br><input type='text' name='ssid' style='width:80%;'><br><br>";
-    html += "PASSWORD:<br><input type='password' name='pass' style='width:80%;'><br><br>";
-    html += "<input type='submit' value='SAVE & CONNECT' style='background:#00ffcc;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;'>";
+    String html = "<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>body{font-family:sans-serif;text-align:center;padding:20px;background:#111;color:#fff;}</style></head><body>";
+    html += "<h1>Network Settings</h1><form action='/save' method='POST'>";
+    html += "SSID:<br><input type='text' name='ssid' style='width:90%;padding:10px;'><br><br>";
+    html += "PASSWORD:<br><input type='password' name='pass' style='width:90%;padding:10px;'><br><br>";
+    html += "<input type='submit' value='SAVE & CONNECT' style='background:#00ffcc;padding:15px 30px;border:none;border-radius:5px;font-weight:bold;'>";
     html += "</form></body></html>";
     _server.send(200, "text/html", html);
 }

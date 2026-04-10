@@ -53,6 +53,7 @@ private:
     int _historicalReconnects = 0;
     
     bool _isConfigMode = false;
+    bool _fsReady = false;
     char _apSSID[32];
     
     Preferences _prefs;
