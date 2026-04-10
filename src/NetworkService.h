@@ -55,6 +55,7 @@ private:
     bool _isConfigMode = false;
     bool _fsReady = false;
     int _bootPhase = 0; // 0: WiFi Only, 1: FS, 2: Web, 3: Full
+    int _gmtOffset = -5;
     char _apSSID[32];
     
     Preferences _prefs;

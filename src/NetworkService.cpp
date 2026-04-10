@@ -4,11 +4,10 @@
 NetworkService::NetworkService() {}
 
 void NetworkService::begin(const char* ssid, const char* pass) {
-    // FASE 0: Solo lo vital para el booteo instantáneo
     Serial.println("\n[PHASING] Step 0: Minimal Core Start...");
     
-    // Almacenar credenciales por defecto (se sobreescriben en Fase 1 si hay NVS)
-    _prefs.begin("net_stats", true); // Solo lectura inicial
+    // Almacenar credenciales por defecto (con prevención de NVS crash)
+    _prefs.begin("net_stats", true);
     String savedSSID = _prefs.getString("w_ssid", ssid);
     String savedPASS = _prefs.getString("w_pass", pass);
     _prefs.end();
@@ -19,70 +18,52 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     _startTime = millis();
     _lastConnectedTime = millis();
     _bootPhase = 0;
-    
-    Serial.println("[PHASING] Core alive. Dashboard should be visible.");
 }
 
 void NetworkService::update() {
     unsigned long uptime = millis() - _startTime;
 
-    // FASE 1: Inicialización de Archivos y NVS (T+10s)
+    // FASE 1: NVS & Stats (T+10s)
     if (_bootPhase == 0 && uptime > 10000) {
-        Serial.println("[PHASING] Step 1: FileSystem & Stats...");
         _fsReady = LittleFS.begin(true);
-        
         _prefs.begin("net_stats", false);
         _historicalReconnects = _prefs.getInt("t_recon", 0);
         _historicalUptime = _prefs.getULong("t_uptime", 0);
         _reconnectCount = _prefs.getInt("recon", 0);
+        _gmtOffset = _prefs.getInt("gmt", -5); // Default Lima
         _prefs.end();
-        
         _bootPhase = 1;
-        logEvent("SYS_PHASE", "FileSystem & Stats Ready");
+        logEvent("SYS_PHASE", "NVS Services Ready");
     }
 
-    // FASE 2: Servidores Web y DNS (T+15s)
+    // FASE 2: Servidores (T+15s)
     if (_bootPhase == 1 && uptime > 15000) {
-        Serial.println("[PHASING] Step 2: Web & DNS Servers...");
         if (!_server) _server = new WebServer(80);
         if (!_dnsServer) _dnsServer = new DNSServer();
         _setupWebServer();
         _bootPhase = 2;
-        logEvent("SYS_PHASE", "Web Interface Ready");
+        logEvent("SYS_PHASE", "Web Panel Active");
     }
 
-    // FASE 3: NTP & Time Sync (T+20s)
+    // FASE 3: NTP con GMT Dinámico (T+20s)
     if (_bootPhase == 2 && uptime > 20000) {
-        Serial.println("[PHASING] Step 3: NTP Sync (Peru Time)...");
-        configTime(-5 * 3600, 0, "pool.ntp.org");
+        char buf[32]; sprintf(buf, "Syncing NTP (GMT %d)", _gmtOffset);
+        logEvent("SYS_TIME", buf);
+        configTime(_gmtOffset * 3600, 0, "pool.ntp.org");
         _bootPhase = 3;
-        logEvent("SYS_PHASE", "All Systems Operational");
     }
 
-    // --- OPERACION NORMAL ---
+    // --- OPERACION ---
     if (_server) _server->handleClient();
-    
     bool connected = (WiFi.status() == WL_CONNECTED);
-    
-    if (_isConfigMode && _dnsServer) {
-        _dnsServer->processNextRequest();
-    }
+    if (_isConfigMode && _dnsServer) _dnsServer->processNextRequest();
 
     if (connected) {
         _lastConnectedTime = millis();
-        if (_isConfigMode) {
-            WiFi.softAPdisconnect(true);
-            _isConfigMode = false;
-            logEvent("SYS_MODE", "Portal Closed");
+        if (_isConfigMode) { WiFi.softAPdisconnect(true); _isConfigMode = false; }
+        if (_bootPhase >= 1 && (millis() - _lastPingTime > 5000)) { 
+            _lastPingTime = millis(); _performPing(); 
         }
-        
-        // Pings solo tras Fase 1
-        if (_bootPhase >= 1 && (millis() - _lastPingTime > 5000)) {
-            _lastPingTime = millis();
-            _performPing();
-        }
-
-        // Persistencia Uptime
         if (_bootPhase >= 1 && (millis() - _lastSaveTime > _saveInterval)) {
             _historicalUptime += (millis() - _lastSaveTime);
             _lastSaveTime = millis();
@@ -91,20 +72,15 @@ void NetworkService::update() {
             _prefs.end();
         }
     } else {
-        // Portal Cautivo si no conecta en 30s
         if (uptime > 30000 && !connected && !_isConfigMode && _bootPhase >= 2) {
             _isConfigMode = true;
             WiFi.softAP("WiFi-Monitor-C6");
             if (_dnsServer) _dnsServer->start(53, "*", WiFi.softAPIP());
-            logEvent("SYS_MODE", "AP Active: 192.168.4.1");
         }
-
-        // Reconexión con Backoff
         if (millis() - _lastReconnectAttempt > _reconnectInterval) {
             _lastReconnectAttempt = millis();
             _reconnectInterval = (unsigned long)min((int)_reconnectInterval * 2, (int)_maxReconnectInterval);
-            WiFi.disconnect();
-            WiFi.begin();
+            WiFi.disconnect(); WiFi.begin();
             _reconnectCount++;
             if (_bootPhase >= 1) {
                 _prefs.begin("net_stats", false);
@@ -113,35 +89,25 @@ void NetworkService::update() {
                 _prefs.end();
             }
         }
-
         if (millis() - _lastConnectedTime > _maxDisconnectTime) {
             logEvent("SYS_CRITICAL", "Watchdog Reset");
-            delay(1000);
-            ESP.restart();
+            delay(1000); ESP.restart();
         }
     }
 }
 
 void NetworkService::logEvent(const char* type, const char* data) {
     char timeStr[25] = "BOOTING"; 
-    time_t now;
-    time(&now);
+    time_t now; time(&now);
     if (now > 1000000) {
-        struct tm timeinfo;
-        gmtime_r(&now, &timeinfo);
+        struct tm timeinfo; gmtime_r(&now, &timeinfo);
         strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
     }
-    
-    char fullMsg[128];
-    sprintf(fullMsg, "[%s] EVENT: %s | %s", timeStr, type, data);
+    char fullMsg[128]; sprintf(fullMsg, "[%s] EVENT: %s | %s", timeStr, type, data);
     Serial.println(fullMsg);
-    
     if (_fsReady) {
-        File file = LittleFS.open("/log.txt", FILE_APPEND);
-        if (file) {
-            file.println(fullMsg);
-            file.close();
-        }
+        File f = LittleFS.open("/log.txt", FILE_APPEND);
+        if (f) { f.println(fullMsg); f.close(); }
     }
 }
 
@@ -153,14 +119,15 @@ void NetworkService::_setupWebServer() {
     _server->on("/save", HTTP_POST, [this]() {
         String s = _server->arg("ssid");
         String p = _server->arg("pass");
+        String g = _server->arg("gmt");
         if (s.length() > 0) {
             _prefs.begin("net_stats", false);
             _prefs.putString("w_ssid", s);
             _prefs.putString("w_pass", p);
+            _prefs.putInt("gmt", g.toInt());
             _prefs.end();
-            _server->send(200, "text/html", "<b>Config OK</b>. Rebooting...");
-            delay(1000);
-            ESP.restart();
+            _server->send(200, "text/html", "<b>Settings Saved</b>. Rebooting...");
+            delay(1000); ESP.restart();
         }
     });
     _server->onNotFound([this]() {
@@ -171,61 +138,61 @@ void NetworkService::_setupWebServer() {
 }
 
 void NetworkService::_handleRoot() {
-    String html = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>";
-    html += "<title>WiFi Monitor Pro</title><style>body{font-family:sans-serif;background:#0d0d0d;color:#eee;text-align:center;padding:10px;}";
-    html += ".card{background:#1a1a1a;padding:15px;border-radius:10px;border:1px solid #00ffcc;margin:10px;}";
-    html += "h1{color:#00ffcc;font-size:1.5em;} .val{font-size:2em;color:#fff;font-weight:bold;}</style></head><body>";
-    html += "<h1>Industrial WiFi Monitor</h1>";
-    html += "<div class='card'><div>UPTIME</div><div class='val'>" + getUptimeString() + "</div></div>";
-    html += "<br><a href='/logs' style='color:#00ffcc'>View System Logs</a> | <a href='/config' style='color:#00ffcc'>Settings</a>";
-    html += "</body></html>";
-    _server->send(200, "text/html", html);
+    String h = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>";
+    h += "<style>body{background:#0d0d0d;color:#eee;text-align:center;font-family:sans-serif;padding:20px;}";
+    h += ".card{background:#1a1a1a;padding:15px;border-radius:10px;border:1px solid #00ffcc;margin:10px;}";
+    h += "h1{color:#00ffcc;}</style></head><body><h1>WiFi Monitor Pro</h1>";
+    h += "<div class='card'><div>UPTIME</div><div style='font-size:2em; font-weight:bold;'>" + getUptimeString() + "</div></div>";
+    h += "<div class='card'><div>ZONE (GMT)</div><div style='font-size:1.5em;'>" + String(_gmtOffset) + "</div></div>";
+    h += "<br><a href='/logs' style='color:#00ffcc'>View Logs</a> | <a href='/config' style='color:#00ffcc'>Settings</a></body></html>";
+    _server->send(200, "text/html", h);
 }
 
 void NetworkService::_handleLogs() {
-    if (!_fsReady) { _server->send(500, "text/plain", "FS Error"); return; }
-    File file = LittleFS.open("/log.txt", FILE_READ);
-    if (!file) { _server->send(200, "text/plain", "Log Empty"); return; }
-    _server->streamFile(file, "text/plain");
-    file.close();
+    if (!_fsReady) { _server->send(500, "text/plain", "No FS"); return; }
+    File f = LittleFS.open("/log.txt", FILE_READ);
+    if (!f) { _server->send(200, "text/plain", "Empty"); return; }
+    _server->streamFile(f, "text/plain"); f.close();
 }
 
 void NetworkService::_handleConfig() {
-    String html = "<h1>Network Config</h1><form action='/save' method='POST'>";
-    html += "SSID: <input type='text' name='ssid'><br>PASS: <input type='password' name='pass'><br><input type='submit' value='SAVE'></form>";
-    _server->send(200, "text/html", html);
+    String h = "<html><body style='background:#111;color:#fff;text-align:center;'><h1>Configuration</h1>";
+    h += "<form action='/save' method='POST' style='display:inline-block; text-align:left;'>";
+    h += "WiFi SSID:<br><input type='text' name='ssid' style='width:200px;'><br><br>";
+    h += "WiFi PASS:<br><input type='password' name='pass' style='width:200px;'><br><br>";
+    h += "GMT Offset (Peru is -5):<br><input type='number' name='gmt' value='"+String(_gmtOffset)+"' style='width:200px;'><br><br>";
+    h += "<input type='submit' value='SAVE & REBOOT' style='background:#00ffcc; padding:10px 20px; border:none; border-radius:5px; font-weight:bold;'>";
+    h += "</form></body></html>";
+    _server->send(200, "text/html", h);
 }
 
 String NetworkService::getUptimeString() {
-    unsigned long totalSec = (_historicalUptime + (millis() - _startTime)) / 1000;
-    char buffer[16];
-    sprintf(buffer, "%02luh %02lum %02lus", totalSec/3600, (totalSec%3600)/60, totalSec%60);
-    return String(buffer);
+    unsigned long sec = (_historicalUptime + (millis() - _startTime)) / 1000;
+    char b[16]; sprintf(b, "%02luh %02lum %02lus", sec/3600, (sec%3600)/60, sec%60);
+    return String(b);
 }
 
 void NetworkService::_performPing() {
-    static bool toggle = false;
-    IPAddress gateway = WiFi.gatewayIP();
-    if (!toggle) { _lastPingGW = Ping.ping(gateway) ? Ping.averageTime() : -1; }
+    static bool t = false; IPAddress gw = WiFi.gatewayIP();
+    if (!t) { _lastPingGW = Ping.ping(gw) ? Ping.averageTime() : -1; }
     else { _lastPingInternet = Ping.ping("8.8.8.8") ? Ping.averageTime() : -1; }
-    toggle = !toggle;
+    t = !t;
 }
 
 NetworkService::NetworkData NetworkService::getData() {
-    NetworkData data;
-    data.connected = (WiFi.status() == WL_CONNECTED);
-    if (data.connected) {
-        data.rssi = WiFi.RSSI(); data.ip = WiFi.localIP().toString();
-        data.channel = WiFi.channel(); data.pingGW = _lastPingGW; data.pingInternet = _lastPingInternet;
+    NetworkData d; d.connected = (WiFi.status() == WL_CONNECTED);
+    if (d.connected) {
+        d.rssi = WiFi.RSSI(); d.ip = WiFi.localIP().toString();
+        d.channel = WiFi.channel(); d.pingGW = _lastPingGW; d.pingInternet = _lastPingInternet;
     } else {
-        data.rssi = -100; data.ip = "0.0.0.0"; data.channel = 0; data.pingGW = -1; data.pingInternet = -1;
+        d.rssi = -100; d.ip = "0.0.0.0"; d.channel = 0; d.pingGW = -1; d.pingInternet = -1;
     }
-    return data;
+    return d;
 }
 
 int NetworkService::getReconnectCount() { return _reconnectCount; }
 float NetworkService::getDisconnectRate() {
-    float totalHours = (_historicalUptime + (millis() - _startTime)) / 3600000.0;
-    return (totalHours < 0.01) ? 0.0 : (float)(_historicalReconnects + _reconnectCount) / totalHours;
+    float h = (_historicalUptime + (millis() - _startTime)) / 3600000.0;
+    return (h < 0.01) ? 0.0 : (float)(_historicalReconnects + _reconnectCount) / h;
 }
 bool NetworkService::isConnected() { return WiFi.status() == WL_CONNECTED; }
