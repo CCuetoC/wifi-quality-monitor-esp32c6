@@ -6,7 +6,7 @@
 #include "DashboardRenderer.h"
 
 #define WDT_TIMEOUT_SECONDS 15
-#define UI_REFRESH_MS 250
+#define UI_REFRESH_MS 1000
 
 NetworkService network;
 QualityAnalyzer analyzer;
@@ -14,13 +14,14 @@ DashboardRenderer renderer;
 
 #define LED_PIN 5
 unsigned long lastUIUpdate = 0;
+unsigned long lastHistorySample = 0;
 QualityAnalyzer::HealthState lastState = QualityAnalyzer::CRITICAL;
 
 void setup() {
     Serial.begin(115200);
     Serial.println("\n--- WIFI QUALITY MONITOR START ---");
     
-    // Watchdog Configuration
+    // Watchdog Configuration (Diferido para estabilidad)
     #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
         esp_task_wdt_config_t twdt_config = {
             .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,
@@ -28,7 +29,6 @@ void setup() {
             .trigger_panic = true
         };
         esp_task_wdt_reconfigure(&twdt_config);
-    #else
     #endif
     
     pinMode(LED_PIN, OUTPUT);
@@ -46,7 +46,7 @@ void loop() {
     esp_task_wdt_reset();
     network.update();
     
-    // Non-blocking UI Refresh Loop
+    // Non-blocking UI Refresh Loop (Refresco de 1 segundo)
     if (millis() - lastUIUpdate >= UI_REFRESH_MS) {
         lastUIUpdate = millis();
         
@@ -55,12 +55,19 @@ void loop() {
         if (netData.connected) {
             // Análisis de salud basado en latencia WAN (Internet)
             QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
-            analyzer.addSample(health.score);
             
-            // Detección y registro de cambio de estado (Auditoría)
+            // Decoupling: Muestreo de tendencia cada 5 segundos para cubrir ~4 minutos
+            if (millis() - lastHistorySample >= 5000) {
+                analyzer.addSample(health.score);
+                lastHistorySample = millis();
+            }
+            
+            // Detección y registro de cambio de estado Semántico (Auditoría)
             if (health.state != lastState) {
-                char stateBuf[32];
-                sprintf(stateBuf, "From %d to %s", (int)lastState, health.label);
+                char stateBuf[64];
+                sprintf(stateBuf, "From %s to %s", 
+                        QualityAnalyzer::getStateName(lastState), 
+                        QualityAnalyzer::getStateName(health.state));
                 network.logEvent("STATE_CHANGE", stateBuf);
                 lastState = health.state;
             }
@@ -70,7 +77,6 @@ void loop() {
             
             digitalWrite(LED_PIN, (netData.rssi > -70) ? HIGH : LOW);
         } else {
-            // Telemetría básica persistente incluso sin enlace WiFi
             renderer.drawDisconnected(network.getUptimeString(), network.getReconnectCount(), network.getDisconnectRate());
             digitalWrite(LED_PIN, (millis() % 500 < 250) ? HIGH : LOW);
         }

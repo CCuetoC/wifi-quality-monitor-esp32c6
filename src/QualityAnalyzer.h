@@ -7,6 +7,16 @@ class QualityAnalyzer {
 public:
     enum HealthState { CRITICAL, DEGRADED, GOOD, EXCELLENT };
 
+    static const char* getStateName(HealthState state) {
+        switch(state) {
+            case EXCELLENT: return "EXCELLENT";
+            case GOOD:      return "GOOD";
+            case DEGRADED:  return "DEGRADED";
+            case CRITICAL:  return "CRITICAL";
+            default:        return "UNKNOWN";
+        }
+    }
+
     struct HealthMetrics {
         int score;           // 0-100%
         HealthState state;   // Categoría lógica
