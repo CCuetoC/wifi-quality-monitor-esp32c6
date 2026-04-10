@@ -31,21 +31,17 @@ void NetworkService::update() {
 }
 
 void NetworkService::_performPing() {
+    static bool toggle = false;
     IPAddress gateway = WiFi.gatewayIP();
     
-    // 1. Ping al Gateway (Local)
-    if (Ping.ping(gateway)) {
-        _lastPingGW = Ping.averageTime();
+    if (!toggle) {
+        // Ciclo A: Ping al Gateway (Local)
+        _lastPingGW = Ping.ping(gateway) ? Ping.averageTime() : -1;
     } else {
-        _lastPingGW = -1;
+        // Ciclo B: Ping a Internet (Google)
+        _lastPingInternet = Ping.ping("8.8.8.8") ? Ping.averageTime() : -1;
     }
-
-    // 2. Ping a Internet (Google)
-    if (Ping.ping("8.8.8.8")) {
-        _lastPingInternet = Ping.averageTime();
-    } else {
-        _lastPingInternet = -1;
-    }
+    toggle = !toggle;
 }
 
 NetworkService::NetworkData NetworkService::getData() {

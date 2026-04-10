@@ -6,7 +6,7 @@
 #include "DashboardRenderer.h"
 
 // Configuración de Watchdog (Industrial Robustness)
-#define WDT_TIMEOUT_SECONDS 10
+#define WDT_TIMEOUT_SECONDS 15
 
 // Instancias de Módulos
 NetworkService network;
@@ -20,14 +20,18 @@ void setup() {
     Serial.begin(115200);
     Serial.println("\n--- WIFI QUALITY MONITOR M1 START ---");
     
-    // Inicializar Watchdog (Grado Industrial)
-    esp_task_wdt_config_t twdt_config = {
-        .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,
-        .idle_core_mask = (1 << 0), // Monitoriza el core 0 (único en C6)
-        .trigger_panic = true
-    };
-    esp_task_wdt_reconfigure(&twdt_config); // Configuración para ESP-IDF 5+
-    esp_task_wdt_add(NULL); // Suscribir el hilo actual (loop)
+    // Inicializar Watchdog (Versión compatible)
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        esp_task_wdt_config_t twdt_config = {
+            .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,
+            .idle_core_mask = (1 << 0),
+            .trigger_panic = true
+        };
+        esp_task_wdt_reconfigure(&twdt_config);
+    #else
+        esp_task_wdt_init(WDT_TIMEOUT_SECONDS, true);
+    #endif
+    esp_task_wdt_add(NULL); 
     
     pinMode(LED_PIN, OUTPUT);
     
