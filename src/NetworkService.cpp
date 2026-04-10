@@ -48,6 +48,27 @@ void NetworkService::update() {
     }
 }
 
+void NetworkService::logEvent(const char* type, const char* data) {
+    time_t now;
+    time(&now);
+    struct tm timeinfo;
+    gmtime_r(&now, &timeinfo);
+    
+    // Serial Logging: Formato estándar para auditoria técnica
+    Serial.printf("[%02d:%02d:%02d] EVENT: %s | %s\n", 
+                  timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, type, data);
+}
+
+String NetworkService::getUptimeString() {
+    unsigned long sec = (millis() - _startTime) / 1000;
+    int h = sec / 3600;
+    int m = (sec % 3600) / 60;
+    int s = sec % 60;
+    char buffer[12];
+    sprintf(buffer, "%02dh %02dm %02ds", h, m, s);
+    return String(buffer);
+}
+
 void NetworkService::_performPing() {
     static bool toggle = false;
     IPAddress gateway = WiFi.gatewayIP();
