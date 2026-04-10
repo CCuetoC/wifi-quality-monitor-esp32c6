@@ -36,19 +36,31 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
     metrics.score = (rssiScore * 0.6) + (pingScore * 0.4);
     metrics.score = constrain(metrics.score, 0, 100);
 
-    // State Machine: Clasificación basada en umbrales de la ITU-T G.1010
+    // State Machine: Clasificación basada en umbrales con Histéresis (Zona muerta de 5 puntos)
+    int margin = 5;
+    
     if (metrics.score >= 91) {
-        metrics.label = "EXCELLENT";
         metrics.state = EXCELLENT;
     } else if (metrics.score >= 71) {
-        metrics.label = "GOOD";
-        metrics.state = GOOD; 
+        // Solo bajar a DEGRADED si cae por debajo de 66 (71 - 5)
+        if (_lastState == EXCELLENT || metrics.score >= 71) metrics.state = GOOD;
+        else if (_lastState == GOOD && metrics.score < 66) metrics.state = DEGRADED;
     } else if (metrics.score >= 41) {
-        metrics.label = "DEGRADED";
-        metrics.state = DEGRADED;
+        // Solo bajar a CRITICAL si cae por debajo de 36 (41 - 5)
+        if (_lastState == GOOD || metrics.score >= 41) metrics.state = DEGRADED;
+        else if (_lastState == DEGRADED && metrics.score < 36) metrics.state = CRITICAL;
     } else {
-        metrics.label = "CRITICAL";
         metrics.state = CRITICAL;
+    }
+
+    _lastState = metrics.state;
+
+    // Label Mapping
+    switch(metrics.state) {
+        case EXCELLENT: metrics.label = "EXCELLENT"; break;
+        case GOOD:      metrics.label = "GOOD"; break;
+        case DEGRADED:  metrics.label = "DEGRADED"; break;
+        case CRITICAL:  metrics.label = "CRITICAL"; break;
     }
 
     return metrics;

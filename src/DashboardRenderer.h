@@ -10,7 +10,10 @@ class DashboardRenderer {
 public:
     void begin();
     void drawBootScreen(const char* state);
-    void drawDashboard(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, const int* history, int historySize, int circularIndex, String uptime, int reconnects);
+    void drawDashboard(const NetworkService::NetworkData& net, 
+                       const QualityAnalyzer::HealthMetrics& health, 
+                       const int* history, int historySize, int circularIndex,
+                       String uptime, int reconnects, float reliability);
     void drawDisconnected();
 
 private:

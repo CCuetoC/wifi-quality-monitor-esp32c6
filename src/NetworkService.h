@@ -24,6 +24,7 @@ public:
     void logEvent(const char* type, const char* data);
     String getUptimeString();
     int getReconnectCount();
+    float getReliability();
 
 private:
     unsigned long _startTime = 0;

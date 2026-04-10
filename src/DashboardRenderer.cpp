@@ -59,7 +59,7 @@ void DashboardRenderer::drawBootScreen(const char* state) {
 void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, 
                                const QualityAnalyzer::HealthMetrics& health, 
                                const int* history, int historySize, int circularIndex,
-                               String uptime, int reconnects) {
+                               String uptime, int reconnects, float reliability) {
     _canvas.fillScreen(TFT_BLACK);
     
     uint16_t statusColor = _getColorForState(health.state);
@@ -67,7 +67,14 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
     _drawHeader(health.score, health.label, statusColor);
     _drawSignalBar(health.score, statusColor);
     _drawHistoryGraph(history, historySize, circularIndex, statusColor);
-    _drawFooter(net, health, uptime, reconnects);
+
+    // Etiqueta de Ventana Temporal (Claridad Operativa)
+    _canvas.setTextSize(1);
+    _canvas.setTextColor(TFT_DARKGREY);
+    _canvas.setTextDatum(top_right);
+    _canvas.drawString("TREND: 60 SAMPLES (30s)", _canvas.width() - 22, 62);
+    
+    _drawFooter(net, health, uptime, reconnects, reliability);
     
     _canvas.pushSprite(&_tft, 0, 0);
 }
@@ -131,7 +138,7 @@ void DashboardRenderer::_drawHistoryGraph(const int* history, int size, int circ
     }
 }
 
-void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, int reconnects) {
+void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, int reconnects, float reliability) {
     _canvas.setTextSize(1);
     _canvas.setTextColor(TFT_LIGHTGREY);
     _canvas.setTextDatum(bottom_left);
@@ -160,13 +167,13 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, cons
     _canvas.setTextColor(stabColor);
     _canvas.print(stabilityTxt);
     
-    // Bus Arbitration: Tercera línea (Métricas Industriales / Uptime)
+    // Bus Arbitration: Tercera línea (Métricas Industriales / Reliability)
     _canvas.setTextColor(TFT_DARKGREY);
     _canvas.setCursor(20, 166);
     _canvas.print("UPTIME: ");
     _canvas.print(uptime);
-    _canvas.print(" | RECON: ");
-    _canvas.print(reconnects);
+    _canvas.print(" | REL: ");
+    _canvas.printf("%.1f/hr", reliability);
 }
 
 void DashboardRenderer::drawDisconnected() {

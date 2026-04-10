@@ -41,6 +41,8 @@ private:
     int _pingBuffer[MA_SIZE] = {0};
     int _rssiIndex = 0;
     int _pingIndex = 0;
+
+    HealthState _lastState = CRITICAL;
 };
 
 #endif

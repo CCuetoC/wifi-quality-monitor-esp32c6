@@ -64,7 +64,7 @@ void loop() {
         
         // Rasterization & Display Swap: Renderizar Dashboard con métricas industriales y persistencia
         renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex(),
-                               network.getUptimeString(), network.getReconnectCount());
+                               network.getUptimeString(), network.getReconnectCount(), network.getReliability());
         
         // Visual Handshake: Retroalimentación física vía LED según RSSI
         digitalWrite(LED_PIN, (netData.rssi > -70) ? HIGH : LOW);

@@ -66,6 +66,17 @@ NetworkService::NetworkData NetworkService::getData() {
     return data;
 }
 
+int NetworkService::getReconnectCount() {
+    return _reconnectCount;
+}
+
+float NetworkService::getReliability() {
+    // Cálculo de Reliability: Desconexiones por hora
+    float uptimeHours = (millis() - _startTime) / 3600000.0;
+    if (uptimeHours < 0.01) return 0.0; // Evitar división por cero o datos prematuros
+    return (float)_reconnectCount / uptimeHours;
+}
+
 bool NetworkService::isConnected() {
     return WiFi.status() == WL_CONNECTED;
 }
