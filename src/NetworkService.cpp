@@ -123,7 +123,7 @@ void NetworkService::update() {
 }
 
 void NetworkService::logEvent(const char* type, const char* data) {
-    char timeStr[25] = "2026-00-00 00:00:00"; 
+    char timeStr[25] = "BOOTING"; 
     time_t now;
     time(&now);
     if (now > 1000000) {
