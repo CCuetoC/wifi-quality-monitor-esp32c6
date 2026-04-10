@@ -149,6 +149,13 @@ bool NetworkService::loadTrend(int* h, int s, int* idx) {
     f.read((uint8_t*)idx, sizeof(int)); f.read((uint8_t*)h, s * sizeof(int)); f.close(); return true;
 }
 
+bool saveRam(const int* h, int idx) {
+    File f = LittleFS.open("/ram.bin", FILE_WRITE); if(!f) return false; f.write((uint8_t*)&idx, sizeof(int)); f.write((uint8_t*)h, 50*sizeof(int)); f.close(); return true;
+}
+bool loadRam(int* h, int* idx) {
+    File f = LittleFS.open("/ram.bin", FILE_READ); if(!f) return false; f.read((uint8_t*)idx, sizeof(int)); f.read((uint8_t*)h, 50*sizeof(int)); f.close(); return true;
+}
+
 void NetworkService::_setupWebServer() {
     _server->on("/", [this]() { _handleRoot(); });
     _server->on("/logs", [this]() { _handleLogs(); });
