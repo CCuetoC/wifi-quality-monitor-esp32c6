@@ -4,24 +4,26 @@
 
 NetworkService::NetworkService() {}
 
-// Helper para CSS compartido
+// Helper para CSS compartido (Moderno & Industrial)
 String getCommonCSS() {
     String c = "<style>body{background:#0a0a0a;color:#eee;font-family:sans-serif;text-align:center;padding:0;margin:0;}";
-    c += ".nav{background:#111;padding:15px;border-bottom:1px solid #00ffcc;margin-bottom:20px;display:flex;justify-content:center;gap:15px;}";
-    c += ".nav a{color:#00ffcc;text-decoration:none;font-weight:bold;font-size:0.9em;padding:5px 10px;border:1px solid transparent;border-radius:4px;}";
-    c += ".nav a:hover{background:#00ffcc22;border-color:#00ffcc;}";
+    c += ".nav{background:#111;padding:15px;border-bottom:1px solid #00ffcc;margin-bottom:20px;display:flex;justify-content:center;gap:15px;flex-wrap:wrap;}";
+    c += ".nav a{color:#00ffcc;text-decoration:none;font-weight:bold;font-size:0.9em;padding:8px 15px;border:1px solid #333;border-radius:6px;transition:0.3s;}";
+    c += ".nav a:hover{background:#00ffcc;color:#000;border-color:#00ffcc;}";
     c += ".card{background:#111;padding:20px;border-radius:15px;border:1px solid #333;margin:10px;display:inline-block;min-width:180px;}";
-    c += "h1,h2{color:#00ffcc;text-transform:uppercase;letter-spacing:1px;} .val{font-size:1.8em;font-weight:bold;color:#fff;}";
-    c += "table{width:95%;margin:0 auto;border-collapse:collapse;background:#111;font-family:monospace;font-size:0.9em;}";
-    c += "th{background:#00ffcc;color:#000;padding:10px;} td{padding:8px;border-bottom:1px solid #222;}";
-    c += ".tag{padding:2px 5px;border-radius:3px;font-size:0.8em;font-weight:bold;}";
+    c += "h1,h2{color:#00ffcc;text-transform:uppercase;letter-spacing:1px;margin:20px 0;} .val{font-size:1.8em;font-weight:bold;color:#fff;}";
+    c += "table{width:95%;max-width:1000px;margin:20px auto;border-collapse:collapse;background:#111;font-family:monospace;font-size:0.9em;box-shadow:0 10px 30px rgba(0,0,0,0.5);}";
+    c += "th{background:#00ffcc;color:#000;padding:12px;text-transform:uppercase;} td{padding:10px;border-bottom:1px solid #222;}";
+    c += ".tag{padding:3px 8px;border-radius:4px;font-size:0.75em;font-weight:bold;}";
     c += ".CRITICAL{background:#ff4444;color:#fff;} .STATE_CHANGE{background:#00ffcc;color:#000;}";
+    c += ".SYS_STATUS{background:#4488ff;color:#fff;} .SYS_TIME{background:#ffaa00;color:#000;}";
+    c += ".btn{background:#00ffcc;color:#000;padding:12px 25px;border:none;border-radius:5px;font-weight:bold;cursor:pointer;text-decoration:none;display:inline-block;margin:20px 0;}";
     c += "</style>";
     return c;
 }
 
 String getNav() {
-    return "<div class='nav'><a href='/'>DASHBOARD</a><a href='/logs'>SYSTEM LOGS</a><a href='/config'>SETTINGS</a></div>";
+    return "<div class='nav'><a href='/'>DASHBOARD</a><a href='/graph'>LIVE TREND</a><a href='/logs'>SYSTEM LOGS</a><a href='/config'>SETTINGS</a></div>";
 }
 
 void NetworkService::begin(const char* ssid, const char* pass) {
@@ -30,10 +32,8 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     String savedSSID = _prefs.getString("w_ssid", ssid);
     String savedPASS = _prefs.getString("w_pass", pass);
     _prefs.end();
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(savedSSID.c_str(), savedPASS.c_str());
-    _startTime = millis();
-    _lastConnectedTime = millis();
+    WiFi.mode(WIFI_STA); WiFi.begin(savedSSID.c_str(), savedPASS.c_str());
+    _startTime = millis(); _lastConnectedTime = millis();
     _bootPhase = 0;
 }
 
@@ -61,11 +61,9 @@ void NetworkService::update() {
     }
 
     if (_bootPhase == 2 && uptime > 20000) {
-        // Forzar sincronización con offset regional
         configTime(_gmtOffset * 3600, 0, "pool.ntp.org", "time.google.com");
         _bootPhase = 3;
-        char buf[64];
-        sprintf(buf, "Regional Clock Synced (GMT %d)", _gmtOffset);
+        char buf[64]; sprintf(buf, "Regional Clock Synced (GMT %d)", _gmtOffset);
         logEvent("SYS_STATUS", buf);
     }
 
@@ -80,9 +78,7 @@ void NetworkService::update() {
         if (_bootPhase >= 1 && (millis() - _lastSaveTime > _saveInterval)) {
             _historicalUptime += (millis() - _lastSaveTime);
             _lastSaveTime = millis();
-            _prefs.begin("net_stats", false);
-            _prefs.putULong("t_uptime", _historicalUptime);
-            _prefs.end();
+            _prefs.begin("net_stats", false); _prefs.putULong("t_uptime", _historicalUptime); _prefs.end();
         }
     } else {
         if (uptime > 30000 && !connected && !_isConfigMode && _bootPhase >= 2) {
@@ -96,10 +92,8 @@ void NetworkService::update() {
             WiFi.disconnect(); WiFi.begin();
             _reconnectCount++;
             if (_bootPhase >= 1) {
-                _prefs.begin("net_stats", false);
-                _prefs.putInt("recon", _reconnectCount);
-                _prefs.putInt("t_recon", _historicalReconnects + _reconnectCount);
-                _prefs.end();
+                _prefs.begin("net_stats", false); _prefs.putInt("recon", _reconnectCount);
+                _prefs.putInt("t_recon", _historicalReconnects + _reconnectCount); _prefs.end();
             }
         }
         if (millis() - _lastConnectedTime > _maxDisconnectTime) {
@@ -110,21 +104,40 @@ void NetworkService::update() {
 }
 
 void NetworkService::logEvent(const char* type, const char* data) {
-    char dateStr[16] = "BOOTING";
-    char timeStr[16] = "BOOTING";
+    char dateStr[16] = "BOOTING"; char timeStr[16] = "BOOTING";
     time_t now; time(&now);
     if (now > 1000000) {
         struct tm timeinfo; localtime_r(&now, &timeinfo);
         strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", &timeinfo);
         strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
     }
-    char fullMsg[128];
-    sprintf(fullMsg, "%s|%s|%s|%s", dateStr, timeStr, type, data);
+    char fullMsg[128]; sprintf(fullMsg, "%s|%s|%s|%s", dateStr, timeStr, type, data);
     Serial.println(fullMsg);
     if (_fsReady) {
-        File file = LittleFS.open("/log.txt", FILE_APPEND);
-        if (file) { file.println(fullMsg); file.close(); }
+        File f = LittleFS.open("/log.txt", FILE_APPEND);
+        if (f) { f.println(fullMsg); f.close(); }
     }
+}
+
+bool NetworkService::saveTrend(const int* history, int size, int index) {
+    if (!_fsReady || !history) return false;
+    File f = LittleFS.open("/trend.bin", FILE_WRITE);
+    if (!f) return false;
+    f.write((uint8_t*)&index, sizeof(int));
+    f.write((uint8_t*)history, size * sizeof(int));
+    f.close();
+    return true;
+}
+
+bool NetworkService::loadTrend(int* history, int size, int* index) {
+    if (!_fsReady || !history || !index) return false;
+    if (!LittleFS.exists("/trend.bin")) return false;
+    File f = LittleFS.open("/trend.bin", FILE_READ);
+    if (!f) return false;
+    f.read((uint8_t*)index, sizeof(int));
+    f.read((uint8_t*)history, size * sizeof(int));
+    f.close();
+    return true;
 }
 
 void NetworkService::_setupWebServer() {
@@ -132,6 +145,35 @@ void NetworkService::_setupWebServer() {
     _server->on("/", [this]() { _handleRoot(); });
     _server->on("/logs", [this]() { _handleLogs(); });
     _server->on("/config", [this]() { _handleConfig(); });
+    _server->on("/graph", [this]() {
+        // Redirección simple o renderizado directo. César quiere ver la gráfica.
+        String h = "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='10'>";
+        h += getCommonCSS();
+        h += "</head><body>" + getNav() + "<h2>Quality Trend (Last 2.5 min)</h2>";
+        h += "<div style='background:#111; padding:20px; border-radius:10px; display:inline-block; border:1px solid #333;'>";
+        h += "<svg width='600' height='200' viewBox='0 0 600 200' style='background:#000;'>";
+        h += "<line x1='0' y1='100' x2='600' y2='100' stroke='#222' stroke-width='1'/>";
+        h += "<line x1='0' y1='150' x2='600' y2='150' stroke='#222' stroke-width='1'/>";
+        h += "<line x1='0' y1='50' x2='600' y2='50' stroke='#222' stroke-width='1'/>";
+        
+        // La gráfica se dibuja fuera de este Servicio, necesitamos los datos desde main.
+        // Pero para el plan, inyectaremos un trigger que main resuelva o leeremos el archivo.
+        // Método Robusto: Leer el archivo /trend.bin directamente aquí.
+        int hist[50], idx;
+        if(loadTrend(hist, 50, &idx)) {
+            h += "<polyline points='";
+            for(int i=0; i<50; i++) {
+                int val = hist[(idx + i) % 50];
+                int x = i * 12;
+                int y = 200 - (val * 2);
+                h += String(x) + "," + String(y) + " ";
+            }
+            h += "' fill='none' stroke='#00ffcc' stroke-width='3'/>";
+        }
+        h += "</svg></div><p style='color:#888'>Un punto cada 3 segundos. Refresco automático: 10s</p></body></html>";
+        _server->send(200, "text/html", h);
+    });
+
     _server->on("/status", [this]() {
         NetworkData d = getData();
         String json = "{";
@@ -161,12 +203,11 @@ void NetworkService::_handleRoot() {
     h += "<script>function up(){fetch('/status').then(r=>r.json()).then(d=>{";
     h += "document.getElementById('u').innerText=d.uptime;document.getElementById('r').innerText=d.rssi+' dBm';";
     h += "document.getElementById('re').innerText=d.recon;});} setInterval(up,2000);</script></head><body>";
-    h += getNav();
-    h += "<h1>Monitor Dashboard</h1>";
+    h += getNav(); h += "<h1>Monitor Dashboard</h1>";
     h += "<div class='card'><div style='color:#888'>UPTIME</div><div class='val' id='u'>" + getUptimeString() + "</div></div>";
     h += "<div class='card'><div style='color:#888'>SIGNAL</div><div class='val' id='r'>-- dBm</div></div>";
     h += "<div class='card'><div style='color:#888'>RECONNECTS</div><div class='val' id='re'>" + String(_reconnectCount) + "</div></div>";
-    h += "</body></html>";
+    h += "<br><br><a href='/graph' class='btn'>VIEW REAL-TIME GRAPH</a></body></html>";
     _server->send(200, "text/html", h);
 }
 
@@ -182,11 +223,8 @@ void NetworkService::_handleLogs() {
         }
     }
     file.close();
-
     String h = "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='30'>";
-    h += getCommonCSS();
-    h += "</head><body>";
-    h += getNav();
+    h += getCommonCSS(); h += "</head><body>" + getNav();
     h += "<h2>System Event Log</h2><table><tr><th>DATE</th><th>TIME</th><th>EVENT</th><th>DATA</th></tr>";
     for (int i = lastLogs.size() - 1; i >= 0; i--) {
         String l = lastLogs[i];
@@ -202,14 +240,12 @@ void NetworkService::_handleLogs() {
 
 void NetworkService::_handleConfig() {
     String h = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>";
-    h += getCommonCSS();
-    h += "</head><body>";
-    h += getNav();
+    h += getCommonCSS(); h += "</head><body>" + getNav();
     h += "<h1>Network Settings</h1><form action='/save' method='POST' style='display:inline-block;text-align:left;'>";
     h += "WiFi SSID:<br><input type='text' name='ssid' style='width:250px;padding:8px;background:#222;color:#fff;border:1px solid #444;'><br><br>";
     h += "WiFi PASS:<br><input type='password' name='pass' style='width:250px;padding:8px;background:#222;color:#fff;border:1px solid #444;'><br><br>";
     h += "GMT Offset:<br><input type='number' name='gmt' value='"+String(_gmtOffset)+"' style='width:250px;padding:8px;background:#222;color:#fff;border:1px solid #444;'><br><br>";
-    h += "<input type='submit' value='SAVE & APPLY' style='width:250px;background:#00ffcc;padding:12px;border:none;border-radius:5px;font-weight:bold;cursor:pointer;'>";
+    h += "<input type='submit' value='SAVE & APPLY' class='btn' style='width:100%;'>";
     h += "</form></body></html>";
     _server->send(200, "text/html", h);
 }

@@ -52,17 +52,29 @@ void loop() {
         
         NetworkService::NetworkData netData = network.getData();
         
+        // Recuperación de Historial (Solo una vez tras el arranque de archivos)
+        static bool historyLoaded = false;
+        if (!historyLoaded && millis() > 12000) { // Tras Phase 1
+            int hist[50], idx;
+            if (network.loadTrend(hist, 50, &idx)) {
+                analyzer.loadHistory(hist, 50, idx);
+                network.logEvent("SYS_STATUS", "Visual History Restored");
+            }
+            historyLoaded = true;
+        }
+
         if (netData.connected) {
-            // Análisis de salud basado en latencia WAN (Internet)
             QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
             
-            // Decoupling: Muestreo de tendencia cada 5 segundos para cubrir ~4 minutos
-            if (millis() - lastHistorySample >= 5000) {
+            // Decoupling: Muestreo de tendencia cada 3 segundos para mayor resolución
+            if (millis() - lastHistorySample >= 3000) {
                 analyzer.addSample(health.score);
                 lastHistorySample = millis();
+                // Persistencia inmediata para asegurar supervivencia ante crash
+                network.saveTrend(analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex());
             }
             
-            // Detección y registro de cambio de estado Semántico (Auditoría)
+            // Detección y registro de cambio de estado Semántico
             if (health.state != lastState) {
                 char stateBuf[64];
                 sprintf(stateBuf, "From %s to %s", 

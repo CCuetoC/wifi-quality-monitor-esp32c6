@@ -32,6 +32,10 @@ public:
     int getReconnectCount();
     float getDisconnectRate();
 
+    // Trend Persistence
+    bool saveTrend(const int* history, int size, int index);
+    bool loadTrend(int* history, int size, int* index);
+
 private:
     unsigned long _startTime = 0;
     int _reconnectCount = 0;
