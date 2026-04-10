@@ -65,15 +65,14 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
     uint16_t statusColor = _getColorForState(health.state);
     
     _drawHeader(health.score, health.label, statusColor);
-    _drawHistoryGraph(history, historySize, circularIndex, statusColor);
-
-    // Etiqueta de Ventana Temporal (Claridad Operativa)
-    _canvas.setCursor(_canvas.width() - 22, 115);
+    
+    // Etiqueta de Ventana Temporal (Fuera del gráfico para evitar colisiones)
     _canvas.setTextSize(1);
     _canvas.setTextColor(TFT_DARKGREY);
     _canvas.setTextDatum(top_right);
-    _canvas.drawString("TREND: 50 SAMPLES (10s)", _canvas.width() - 20, 48);
+    _canvas.drawString("TREND: 50 SAMPLES (10s)", _canvas.width() - 20, 38);
     
+    _drawHistoryGraph(history, historySize, circularIndex, statusColor);
     _drawFooter(net, health, uptime, reconnects, disconnectRate);
     
     _canvas.pushSprite(&_tft, 0, 0);
@@ -90,12 +89,12 @@ uint16_t DashboardRenderer::_getColorForState(QualityAnalyzer::HealthState state
 }
 
 void DashboardRenderer::_drawHeader(int score, const char* label, uint16_t color) {
-    _canvas.setTextSize(4);
+    _canvas.setTextSize(3); // Reducido de 4 a 3 para balancear
     _canvas.setTextColor(color);
     _canvas.setTextDatum(top_left);
     char pctBuffer[10];
     sprintf(pctBuffer, "%d%%", score);
-    _canvas.drawString(pctBuffer, 20, 5); 
+    _canvas.drawString(pctBuffer, 20, 8); 
 
     _canvas.setTextSize(2);
     _canvas.setTextColor(TFT_WHITE);
@@ -105,9 +104,9 @@ void DashboardRenderer::_drawHeader(int score, const char* label, uint16_t color
 
 void DashboardRenderer::_drawHistoryGraph(const int* history, int size, int circularIndex, uint16_t color) {
     int graphX = 20;
-    int graphY = 45; // Subimos el gráfico
+    int graphY = 50; // Bajamos el gráfico 5px para separar del header
     int graphW = 280;
-    int graphH = 90; // Aumentamos la altura
+    int graphH = 82; // Ajustamos altura para dejar espacio al footer
 
     _canvas.drawRect(graphX, graphY, graphW, graphH, 0x18C3);
     for(int i=1; i<4; i++) {
@@ -133,12 +132,11 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, cons
     _canvas.setTextColor(TFT_LIGHTGREY);
     _canvas.setTextDatum(bottom_left);
     
-    // Rasterization: Primera línea de diagnóstico (PHY y Red)
-    _canvas.setCursor(20, 142);
+    // Footer: Posicionamiento preciso para evitar desbordes (Y=135+)
+    _canvas.setCursor(20, 137);
     _canvas.printf("RSSI: %d dBm | IP: %s | CH: %d", net.rssi, net.ip.c_str(), net.channel);
     
-    // Rasterization: Segunda línea (ICMP Stack y Estabilidad)
-    _canvas.setCursor(20, 154);
+    _canvas.setCursor(20, 149);
     const char* stabilityTxt = health.isStable ? "STEADY" : "JITTERY";
     uint16_t stabColor = health.isStable ? 0x07E0 : 0xFFE0; 
     
@@ -146,20 +144,16 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, cons
     _canvas.setTextColor(net.pingGW == -1 ? TFT_RED : TFT_GREEN);
     _canvas.print(net.pingGW == -1 ? "FAIL" : String(net.pingGW).c_str());
     _canvas.setTextColor(TFT_LIGHTGREY);
-    _canvas.print(" | ");
-    
-    _canvas.print("EXT: ");
+    _canvas.print(" | EXT: ");
     _canvas.setTextColor(net.pingInternet == -1 ? TFT_RED : TFT_GREEN);
     _canvas.print(net.pingInternet == -1 ? "FAIL" : String(net.pingInternet).c_str());
     _canvas.setTextColor(TFT_LIGHTGREY);
     _canvas.print(" | ");
-    
     _canvas.setTextColor(stabColor);
     _canvas.print(stabilityTxt);
     
-    // Bus Arbitration: Tercera línea (Métricas Industriales / Reliability)
     _canvas.setTextColor(TFT_DARKGREY);
-    _canvas.setCursor(20, 166);
+    _canvas.setCursor(20, 161);
     _canvas.print("UPTIME: ");
     _canvas.print(uptime);
     _canvas.print(" | DR: ");
