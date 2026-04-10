@@ -80,8 +80,8 @@ void loop() {
             // Inyectar métricas para API /status
             network.setQuality(health.score, health.jitter);
 
-            // CAPTURA: Seguimos muestreando cada 3s para suavidad local
-            if (millis() - lastHistorySample >= 3000) {
+            // CAPTURA: Seguimos muestreando cada 2s para suavidad local (v2.4)
+            if (millis() - lastHistorySample >= 2000) {
                 analyzer.addSample(health.score);
                 lastHistorySample = millis();
             }
