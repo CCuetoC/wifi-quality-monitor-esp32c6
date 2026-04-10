@@ -29,11 +29,14 @@ public:
     
     HealthMetrics calculateHealth(int rssi, int pingMs);
     void addSample(int score);
+    void addRamSample(int percent);
     void loadHistory(const int* data, int size, int index);
     void resetBuffers();
     const int* getHistory() const { return _history; }
+    const int* getRamHistory() const { return _ramHistory; }
     int getHistorySize() const { return HISTORY_SIZE; }
     int getHistoryIndex() const { return _historyIndex; } 
+    int getRamIndex() const { return _ramIndex; }
 
 private:
     int _mapRSSI(int rssi);
@@ -42,6 +45,9 @@ private:
     
     int _history[HISTORY_SIZE] = {0};
     int _historyIndex = 0;
+    
+    int _ramHistory[HISTORY_SIZE] = {0};
+    int _ramIndex = 0;
     
     bool _isInitialized = false;
 

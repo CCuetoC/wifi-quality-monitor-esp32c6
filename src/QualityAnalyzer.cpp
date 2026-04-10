@@ -99,6 +99,11 @@ void QualityAnalyzer::addSample(int score) {
     _historyIndex = (_historyIndex + 1) % HISTORY_SIZE;
 }
 
+void QualityAnalyzer::addRamSample(int percent) {
+    _ramHistory[_ramIndex] = percent;
+    _ramIndex = (_ramIndex + 1) % HISTORY_SIZE;
+}
+
 void QualityAnalyzer::loadHistory(const int* data, int size, int index) {
     if (!data || size != HISTORY_SIZE) return;
     memcpy(_history, data, size * sizeof(int));

@@ -86,6 +86,13 @@ void loop() {
                 lastHistorySample = millis();
             }
 
+            // MUESTREO DE RAM (V2.3): Cada 10 segundos para analítica de estabilidad
+            static unsigned long lastRamSample = 0;
+            if (millis() - lastRamSample >= 10000) {
+                analyzer.addRamSample((ESP.getFreeHeap() * 100) / ESP.getHeapSize());
+                lastRamSample = millis();
+            }
+
             // PERSISTENCIA: Solo cada 60s para proteger la vida útil de la Flash
             static unsigned long lastTrendSave = 0;
             if (millis() - lastTrendSave >= 60000) {
