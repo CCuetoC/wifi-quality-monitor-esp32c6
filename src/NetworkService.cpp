@@ -26,9 +26,24 @@ void NetworkService::update() {
     if (WiFi.status() != WL_CONNECTED) {
         if (millis() - _lastReconnectAttempt > _reconnectInterval) {
             _lastReconnectAttempt = millis();
-            
-            // Duplicar el intervalo para el siguiente intento, con un tope de 5 min
             _reconnectInterval = min(_reconnectInterval * 2, _maxReconnectInterval);
+            WiFi.disconnect();
+            WiFi.begin();
+            _reconnectCount++;
+            preferences.putInt("recon", _reconnectCount);
+            logEvent("LINK_DOWN", "Attempting Reconnection");
+        }
+    } else {
+        // Reset Backoff upon successful handshake
+        if (_reconnectInterval != 10000) {
+            logEvent("RECOVERY", "Connection Re-established");
+            _reconnectInterval = 10000;
+        }
+
+        // Diagnostics Cycle: Ejecución temporizada del Ping Dual
+        if (millis() - _lastPingTime > _pingInterval) {
+            _lastPingTime = millis();
+            _performPing();
         }
     }
 }
