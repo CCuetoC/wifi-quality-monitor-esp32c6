@@ -10,7 +10,7 @@ class DashboardRenderer {
 public:
     void begin();
     void drawBootScreen(const char* state);
-    void drawDashboard(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, const int* history, int historySize);
+    void drawDashboard(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, const int* history, int historySize, int circularIndex);
     void drawDisconnected();
 
 private:
@@ -25,9 +25,10 @@ private:
     LGFX_C6 _tft;
     LGFX_Sprite _canvas;
     
-    void _drawHeader(int score, uint16_t color);
+    uint16_t _getColorForState(QualityAnalyzer::HealthState state);
+    void _drawHeader(int score, const char* label, uint16_t color);
     void _drawSignalBar(int score, uint16_t color);
-    void _drawHistoryGraph(const int* history, int size, uint16_t color);
+    void _drawHistoryGraph(const int* history, int size, int circularIndex, uint16_t color);
     void _drawFooter(const NetworkService::NetworkData& net);
 };
 

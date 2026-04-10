@@ -9,32 +9,48 @@
 QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pingMs) {
     HealthMetrics metrics;
     
-    int rssiScore = _mapRSSI(rssi);
-    int pingScore = _mapLatency(pingMs);
+    // Aplicar Promedio Móvil para suavizar variaciones bruscas
+    int avgRSSI = _addToMovingAverage(_rssiBuffer, rssi, _rssiIndex, MA_SIZE);
+    int avgPing = _addToMovingAverage(_pingBuffer, (pingMs == -1 ? 500 : pingMs), _pingIndex, MA_SIZE);
+
+    int rssiScore = _mapRSSI(avgRSSI);
+    int pingScore = _mapLatency(avgPing);
     
-    // Ponderación: 60% RSSI, 40% Latencia
+    // Si no hay conexión (Ping fallido sistemático), el score es 0
+    if (pingMs == -1 && avgPing >= 500) {
+        rssiScore = 0;
+        pingScore = 0;
+    }
+
+    // Ponderación Industrial sugerida: 60% RSSI, 40% Latencia
     metrics.score = (rssiScore * 0.6) + (pingScore * 0.4);
     metrics.score = constrain(metrics.score, 0, 100);
 
-    // Determinar etiqueta y color basado en el score final
-    if (metrics.score >= 85) {
+    // Nuevos Umbrales Operativos (Standard Closing)
+    if (metrics.score >= 91) {
         metrics.label = "EXCELLENT";
-        metrics.color = VAL_GREEN;
-    } else if (metrics.score >= 65) {
+        metrics.state = EXCELLENT;
+    } else if (metrics.score >= 71) {
         metrics.label = "GOOD";
-        metrics.color = VAL_GREEN; // Usamos un verde amarillento en el renderer
-    } else if (metrics.score >= 40) {
-        metrics.label = "FAIR";
-        metrics.color = VAL_YELLOW;
-    } else if (metrics.score >= 20) {
-        metrics.label = "POOR";
-        metrics.color = VAL_ORANGE;
+        metrics.state = GOOD; 
+    } else if (metrics.score >= 41) {
+        metrics.label = "DEGRADED";
+        metrics.state = DEGRADED;
     } else {
         metrics.label = "CRITICAL";
-        metrics.color = VAL_RED;
+        metrics.state = CRITICAL;
     }
 
     return metrics;
+}
+
+int QualityAnalyzer::_addToMovingAverage(int* buffer, int newValue, int& index, int size) {
+    buffer[index] = newValue;
+    index = (index + 1) % size;
+    
+    long sum = 0;
+    for (int i = 0; i < size; i++) sum += buffer[i];
+    return sum / size;
 }
 
 void QualityAnalyzer::addSample(int score) {

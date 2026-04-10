@@ -11,6 +11,14 @@ void NetworkService::update() {
             _performPing();
             _lastPingTime = millis();
         }
+    } else {
+        // Si no está conectado, intentamos reconectar periódicamente
+        static unsigned long lastReconnectAttempt = 0;
+        if (millis() - lastReconnectAttempt > 10000) { 
+            Serial.println("NetworkService: Connection lost. Attempting reconnect...");
+            WiFi.reconnect();
+            lastReconnectAttempt = millis();
+        }
     }
 }
 

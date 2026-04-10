@@ -43,14 +43,20 @@ graph TD
 
 ---
 
-## 📊 Algoritmo de Calidad (IEEE/Industrial)
+## 📊 Algoritmo de Calidad (Industrial Spec)
 
-A diferencia de los medidores básicos, este monitor utiliza una ponderación:
+El monitor utiliza un sistema de **Promedio Móvil (Moving Average)** de 10 muestras para suavizar el ruido y una fórmula de ponderación estricta:
 
-| Métrica | Peso | Umbral Excelente | Umbral Crítico |
-| :--- | :--- | :--- | :--- |
-| **RSSI** | 60% | > -50 dBm | < -90 dBm |
-| **Latencia** | 40% | < 50 ms | > 500 ms |
+$$Quality Score = (0.6 \times RSSI_{score}) + (0.4 \times Latency_{score})$$
+
+### Umbrales Operativos:
+
+| Rango (%) | Estado | Indicación Visual |
+| :--- | :--- | :--- |
+| **91 - 100** | **EXCELLENT** | Verde Sólido |
+| **71 - 90** | **GOOD** | Verde / Cyan |
+| **41 - 70** | **DEGRADED** | Amarillo / Naranja |
+| **0 - 40** | **CRITICAL** | Rojo (Alerta) |
 
 ---
 

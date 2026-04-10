@@ -42,8 +42,8 @@ void loop() {
         // Registrar en historial
         analyzer.addSample(health.score);
         
-        // Renderizar Dashboard con Historial
-        renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize());
+        // Renderizar Dashboard con Historial Cronológico
+        renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex());
         
         // Control de LED según RSSI
         digitalWrite(LED_PIN, (netData.rssi > -70) ? HIGH : LOW);
