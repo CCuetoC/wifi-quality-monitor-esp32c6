@@ -30,6 +30,9 @@ public:
     
     // Industrial Logging & Persistence
     void logEvent(const char* type, const char* data);
+    void logEventWithTime(time_t t, const char* type, const char* data);
+    void checkStartupReason();
+    void estimateLastPowerOff();
     String getUptimeString();
     int getBootPhase() { return _bootPhase; }
     int getReconnectCount();
@@ -69,6 +72,10 @@ private:
     int _lastScore = 0;
     int _lastJitter = 0;
     char _apSSID[32];
+    
+    bool _bootTimeLogged = false;
+    bool _bootReasonLogged = false;
+    unsigned long _lastHeartbeatSent = 0;
     
     Preferences _prefs;
     WebServer* _server = nullptr;
