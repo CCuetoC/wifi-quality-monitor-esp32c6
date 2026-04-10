@@ -46,6 +46,12 @@ void loop() {
     esp_task_wdt_reset();
     network.update();
     
+    // Sincronización de Buffers tras reconexión (V2.1 - Sinceridad Industrial)
+    if (network.consumeConnectionTrigger()) {
+        analyzer.resetBuffers();
+        network.logEvent("SYS_STATUS", "Link Restored - Buffers Flushed");
+    }
+
     // Non-blocking UI Refresh Loop (Refresco de 1 segundo)
     if (millis() - lastUIUpdate >= UI_REFRESH_MS) {
         lastUIUpdate = millis();

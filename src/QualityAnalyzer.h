@@ -30,6 +30,7 @@ public:
     HealthMetrics calculateHealth(int rssi, int pingMs);
     void addSample(int score);
     void loadHistory(const int* data, int size, int index);
+    void resetBuffers();
     const int* getHistory() const { return _history; }
     int getHistorySize() const { return HISTORY_SIZE; }
     int getHistoryIndex() const { return _historyIndex; } 

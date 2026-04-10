@@ -31,6 +31,12 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
     
     // Weighted QoS: Ponderación 60/40
     metrics.score = (rssiScore * 0.6) + (pingScore * 0.4);
+
+    // SINCERIDAD INDUSTRIAL: Si no hay latencia (InternetLink Down), la salud es 0.
+    if (pingMs == -1) {
+        metrics.score = 0;
+    }
+    
     metrics.score = constrain(metrics.score, 0, 100);
 
     // State Machine: Histéresis funcional de 5 puntos
@@ -97,6 +103,12 @@ void QualityAnalyzer::loadHistory(const int* data, int size, int index) {
     if (!data || size != HISTORY_SIZE) return;
     memcpy(_history, data, size * sizeof(int));
     _historyIndex = index % HISTORY_SIZE;
+}
+
+void QualityAnalyzer::resetBuffers() {
+    _isInitialized = false;
+    _rssiIndex = 0;
+    _pingIndex = 0;
 }
 
 int QualityAnalyzer::_mapRSSI(int rssi) {

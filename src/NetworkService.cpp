@@ -3,7 +3,7 @@
 
 NetworkService::NetworkService() {}
 
-// Helper para CSS compartido (Refinado para Producción)
+// Helper para CSS compartido (V2.1 - Estética Premium con soporte para Scanner)
 String getCommonCSS() {
     String c = "<style>body{background:#0a0a0a;color:#eee;font-family:sans-serif;text-align:center;padding:0;margin:0;}";
     c += ".nav{background:#111;padding:15px;border-bottom:1px solid #00ffcc;margin-bottom:20px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap;}";
@@ -15,6 +15,8 @@ String getCommonCSS() {
     c += ".tag{padding:2px 6px;border-radius:3px;font-size:0.75em;font-weight:bold;}";
     c += ".CRITICAL{background:#ff4444;} .STATE_CHANGE{background:#00ffcc;color:#000;} .SYS_STATUS{background:#4488ff;}";
     c += ".btn{background:#00ffcc;color:#000;padding:12px 25px;border:none;border-radius:5px;font-weight:bold;cursor:pointer;text-decoration:none;display:inline-block;margin:15px 0;}";
+    c += "input,select{background:#111;color:#fff;border:1px solid #333;padding:10px;border-radius:5px;width:280px;margin:5px 0;}";
+    c += ".scan-item{padding:10px;border-bottom:1px solid #222;cursor:pointer;text-align:left;} .scan-item:hover{background:#222;}";
     c += "</style>";
     return c;
 }
@@ -59,14 +61,20 @@ void NetworkService::update() {
     }
 
     if (_server) _server->handleClient();
+    if (_dnsServer && _isConfigMode) _dnsServer->processNextRequest();
+
     bool connected = (WiFi.status() == WL_CONNECTED);
 
     if (connected) {
+        // Trigger de reconexión exitosa para limpiar buffers
+        if (!_lastConnectedTime || !connected) _connectionTrigger = true; 
+        
         _lastConnectedTime = millis();
         if (_isConfigMode) { 
             WiFi.softAPdisconnect(true); 
             if (_dnsServer) _dnsServer->stop();
             _isConfigMode = false; 
+            _connectionTrigger = true; // Forzar flush tras salir de modo config
         }
         if (_bootPhase >= 1 && (millis() - _lastPingTime > 5000)) { 
             _lastPingTime = millis(); _performPing(); 
@@ -84,7 +92,6 @@ void NetworkService::update() {
         }
         if (millis() - _lastReconnectAttempt > _reconnectInterval) {
             _lastReconnectAttempt = millis();
-            // Re-intento inteligente: reconnect() primero, begin() tras 2 fallos
             static int failedAttempts = 0;
             if (failedAttempts < 2) WiFi.reconnect(); else WiFi.begin();
             failedAttempts++;
@@ -119,9 +126,9 @@ void NetworkService::_rotateLogs() {
     File f = LittleFS.open("/log.txt", FILE_READ);
     if (!f) return;
     size_t size = f.size(); f.close();
-    if (size > 30000) { // Límite de 30KB para evitar fragmentación
+    if (size > 30000) { 
         LittleFS.rename("/log.txt", "/log_old.txt");
-        LittleFS.remove("/log_old.txt"); // Mantenemos solo el actual para simplicidad industrial
+        LittleFS.remove("/log_old.txt"); 
     }
 }
 
@@ -152,27 +159,41 @@ bool NetworkService::loadTrend(int* history, int size, int* index) {
 
 void NetworkService::_setupWebServer() {
     if (!_server) return;
+    
+    // Captive Portal Redirect
+    _server->onNotFound([this]() {
+        if (_isConfigMode) {
+            _server->sendHeader("Location", "/config", true);
+            _server->send(302, "text/plain", "");
+        } else {
+            _server->send(404, "text/plain", "Not Found");
+        }
+    });
+
     _server->on("/", [this]() { _handleRoot(); });
     _server->on("/logs", [this]() { _handleLogs(); });
     _server->on("/config", [this]() { _handleConfig(); });
+    
+    _server->on("/scan", [this]() {
+        int n = WiFi.scanNetworks();
+        String j = "[";
+        for (int i=0; i<n; i++) {
+            j += "{\"s\":\"" + WiFi.SSID(i) + "\",\"r\":" + String(WiFi.RSSI(i)) + "}";
+            if (i < n-1) j += ",";
+        }
+        j += "]";
+        _server->send(200, "application/json", j);
+    });
+
     _server->on("/status", [this]() {
         NetworkData d = getData();
-        String j = "{";
-        j += "\"uptime\":\"" + getUptimeString() + "\",";
-        j += "\"rssi\":" + String(d.rssi) + ",";
-        j += "\"pingGW\":" + String(d.pingGW) + ",";
-        j += "\"pingNet\":" + String(d.pingInternet) + ",";
-        j += "\"score\":" + String(_lastScore) + ",";
-        j += "\"jitter\":" + String(_lastJitter) + ",";
-        j += "\"recon\":" + String(_reconnectCount);
-        j += "}";
+        String j = "{\"uptime\":\"" + getUptimeString() + "\",\"rssi\":" + String(d.rssi) + ",\"pingGW\":" + String(d.pingGW) + ",\"pingNet\":" + String(d.pingInternet) + ",\"score\":" + String(_lastScore) + ",\"jitter\":" + String(_lastJitter) + ",\"recon\":" + String(_reconnectCount) + "}";
         _server->send(200, "application/json", j);
     });
     
     _server->on("/graph", [this]() {
         String h = "<html><head><meta charset='UTF-8'><meta http-equiv='refresh' content='5'>" + getCommonCSS();
-        h += "</head><body>" + getNav() + "<h2>Quality Trend</h2>";
-        h += "<div style='background:#111;padding:15px;border-radius:10px;display:inline-block;border:1px solid #333;'>";
+        h += "</head><body>" + getNav() + "<h2>Quality Trend</h2><div style='background:#111;padding:15px;border-radius:10px;display:inline-block;border:1px solid #333;'>";
         h += "<svg width='600' height='200' viewBox='0 0 600 200' style='background:#000;'>";
         for(int y=50; y<=150; y+=50) h += "<line x1='0' y1='"+String(y)+"' x2='600' y2='"+String(y)+"' stroke='#222'/>";
         int hi[50], id;
@@ -186,10 +207,7 @@ void NetworkService::_setupWebServer() {
     });
 
     _server->on("/save", HTTP_POST, [this]() {
-        // SEGURIDAD: Token de administración simple
-        if (_server->arg("token") != "admin") {
-            _server->send(403, "text/plain", "ACCESS DENIED"); return;
-        }
+        if (_server->arg("token") != "admin") { _server->send(403, "text/plain", "ACCESS DENIED"); return; }
         String s = _server->arg("ssid"), p = _server->arg("pass"), g = _server->arg("gmt");
         if (s.length() > 0) {
             _prefs.begin("net_stats", false);
@@ -207,13 +225,9 @@ void NetworkService::_handleRoot() {
     h += "<script>function up(){fetch('/status').then(r=>r.json()).then(d=>{";
     h += "const map={'u':d.uptime,'r':d.rssi+' dBm','pg':d.pingGW+' ms','pi':d.pingNet+' ms','sc':d.score+'%','re':d.recon};";
     h += "for(let k in map)document.getElementById(k).innerText=map[k];});} setInterval(up,2500);</script></head><body>";
-    h += getNav() + "<h1>Industrial Monitor</h1>";
-    h += "<div class='card'><div>UPTIME</div><div class='val' id='u'>--</div></div>";
-    h += "<div class='card'><div>SIGNAL</div><div class='val' id='r'>--</div></div>";
-    h += "<div class='card'><div>SCORE</div><div class='val' id='sc'>--</div></div><br>";
-    h += "<div class='card'><div>PING GW</div><div class='val' id='pg'>--</div></div>";
-    h += "<div class='card'><div>PING NET</div><div class='val' id='pi'>--</div></div>";
-    h += "<div class='card'><div>RECONS</div><div class='val' id='re'>--</div></div><br>";
+    h += getNav() + "<h1>Industrial Monitor</h1><div class='card'><div>UPTIME</div><div class='val' id='u'>--</div></div>";
+    h += "<div class='card'><div>SIGNAL</div><div class='val' id='r'>--</div></div><div class='card'><div>SCORE</div><div class='val' id='sc'>--</div></div><br>";
+    h += "<div class='card'><div>PING GW</div><div class='val' id='pg'>--</div></div><div class='card'><div>PING NET</div><div class='val' id='pi'>--</div></div><div class='card'><div>RECONS</div><div class='val' id='re'>--</div></div><br>";
     h += "<a href='/graph' class='btn'>VIEW LIVE TREND</a></body></html>";
     _server->send(200, "text/html", h);
 }
@@ -221,13 +235,9 @@ void NetworkService::_handleRoot() {
 void NetworkService::_handleLogs() {
     if (!_fsReady) { _server->send(500, "text/plain", "FS Error"); return; }
     File f = LittleFS.open("/log.txt", FILE_READ);
-    String h = "<html><head><meta charset='UTF-8'>" + getCommonCSS() + "</head><body>" + getNav();
-    h += "<h2>System Audit Logs</h2><table><tr><th>DATE</th><th>TIME</th><th>EVENT</th><th>DATA</th></tr>";
-    // Lectura lineal (más amigable con RAM que std::deque de Strings grandes)
-    // Para entornos industriales leemos el archivo completo o usamos buffer fijo
+    String h = "<html><head><meta charset='UTF-8'>" + getCommonCSS() + "</head><body>" + getNav() + "<h2>System Audit Logs</h2><table><tr><th>DATE</th><th>TIME</th><th>EVENT</th><th>DATA</th></tr>";
     while (f.available()) {
-        String l = f.readStringUntil('\n');
-        int s1=l.indexOf('|'), s2=l.indexOf('|', s1+1), s3=l.indexOf('|', s2+1);
+        String l = f.readStringUntil('\n'); int s1=l.indexOf('|'), s2=l.indexOf('|', s1+1), s3=l.indexOf('|', s2+1);
         if (s1>0 && s2>0 && s3>0) {
             String dt=l.substring(0,s1), tm=l.substring(s1+1,s2), tp=l.substring(s2+1,s3), msg=l.substring(s3+1);
             h += "<tr><td>"+dt+"</td><td>"+tm+"</td><td><span class='tag "+tp+"'>"+tp+"</span></td><td>"+msg+"</td></tr>";
@@ -238,12 +248,18 @@ void NetworkService::_handleLogs() {
 }
 
 void NetworkService::_handleConfig() {
-    String h = "<html><head><meta charset='UTF-8'>" + getCommonCSS() + "</head><body>" + getNav();
-    h += "<h1>System Configuration</h1><form action='/save' method='POST' style='display:inline-block;text-align:left;'>";
-    h += "WiFi SSID:<br><input type='text' name='ssid' style='width:250px;padding:8px;'><br><br>";
-    h += "WiFi Pass:<br><input type='password' name='pass' style='width:250px;padding:8px;'><br><br>";
-    h += "GMT Offset:<br><input type='number' name='gmt' value='"+String(_gmtOffset)+"' style='width:250px;padding:8px;'><br><br>";
-    h += "Admin Token (Required):<br><input type='password' name='token' style='width:250px;padding:8px;border:2px solid #00ffcc;'><br><br>";
+    String h = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>" + getCommonCSS();
+    h += "<script>function scan(){const b=document.getElementById('sb');b.innerText='Scanning...';fetch('/scan').then(r=>r.json()).then(d=>{";
+    h += "let h='<div style=\"max-height:200px;overflow-y:auto;border:1px solid #333;margin-top:10px;\">';";
+    h += "d.forEach(n=>{h+='<div class=\"scan-item\" onclick=\"sel(\\''+n.s+'\\')\">'+n.s+' ('+n.r+' dBm)</div>';});";
+    h += "h+='</div>';document.getElementById('sl').innerHTML=h;b.innerText='Rescan';});}";
+    h += "function sel(s){document.getElementById('ssid').value=s;}";
+    h += "function tp(){const x=document.getElementById('pass');x.type=(x.type==='password')?'text':'password';}</script></head><body>";
+    h += getNav() + "<h1>Configuration</h1><form action='/save' method='POST' style='display:inline-block;text-align:left;'>";
+    h += "WiFi SSID:<br><input type='text' id='ssid' name='ssid' placeholder='Select or type SSID'><button type='button' id='sb' onclick='scan()' style='padding:10px;margin-left:5px;cursor:pointer;background:#222;color:#fff;border:1px solid #333;border-radius:5px;'>Scan</button>";
+    h += "<div id='sl'></div><br>WiFi Pass:<br><input type='password' id='pass' name='pass'><br><input type='checkbox' onclick='tp()' style='width:auto;'> Show Password<br><br>";
+    h += "GMT Offset:<br><input type='number' name='gmt' value='"+String(_gmtOffset)+"'><br><br>";
+    h += "Admin Token:<br><input type='password' name='token' style='border-color:#00ffcc;'><br><br>";
     h += "<input type='submit' value='APPLY & REBOOT' class='btn' style='width:100%;'></form></body></html>";
     _server->send(200, "text/html", h);
 }

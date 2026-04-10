@@ -34,6 +34,7 @@ public:
     int getBootPhase() { return _bootPhase; }
     int getReconnectCount();
     float getDisconnectRate();
+    bool consumeConnectionTrigger() { bool t = _connectionTrigger; _connectionTrigger = false; return t; }
     void setQuality(int score, int jitter);
 
     // Trend Persistence
@@ -62,6 +63,7 @@ private:
     
     bool _isConfigMode = false;
     bool _fsReady = false;
+    bool _connectionTrigger = false;
     int _bootPhase = 0; // 0: WiFi Only, 1: FS, 2: Web, 3: Full
     int _gmtOffset = -5;
     int _lastScore = 0;
