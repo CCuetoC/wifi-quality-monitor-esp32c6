@@ -95,7 +95,7 @@ void NetworkService::checkStartupReason() {
 void NetworkService::estimateLastPowerOff() {
     if (!_fsReady) return;
     File f = LittleFS.open("/log.txt", FILE_READ);
-    if (!f) return;
+    if (!f) { Serial.println("[FS] Log missing for estimation"); return; }
     if (f.size() > 6000) f.seek(f.size() - 6000);
     String data = f.readString(); f.close();
     
@@ -105,13 +105,14 @@ void NetworkService::estimateLastPowerOff() {
         if (lineStart == -1) lineStart = 0; else lineStart++;
         
         String line = data.substring(lineStart, data.indexOf('\n', lineStart));
-        int s1 = line.indexOf('|'), s2 = line.indexOf('|', s1 + 1);
-        if (s1 > 0 && s2 > 0) {
-            String d = line.substring(0, s1), t = line.substring(s1 + 1, s2);
-            // Reconstrucción del tiempo Lima: UTC-5 hardcoded para el peritaje
-            struct tm tm; strptime((d + " " + t).c_str(), "%Y-%m-%d %H:%M:%S", &tm);
-            time_t offTime = mktime(&tm) + 30; // +intervalo de 30s
+        int yy, mm, dd, h, m, s;
+        if (sscanf(line.c_str(), "%d-%d-%d|%d:%d:%d", &yy, &mm, &dd, &h, &m, &s) == 6) {
+            struct tm tm = {0};
+            tm.tm_year = yy - 1900; tm.tm_mon = mm - 1; tm.tm_mday = dd;
+            tm.tm_hour = h; tm.tm_min = m; tm.tm_sec = s;
+            time_t offTime = mktime(&tm) + 30; // +30s de latido
             logEventWithTime(offTime, "POWER_OFF_EST", "Power loss detected");
+            Serial.printf("[FS] Found last heartbeat at %02d:%02d:%02d\n", h, m, s);
         }
     }
 }
@@ -121,13 +122,15 @@ void NetworkService::logEvent(const char* type, const char* data) {
 }
 
 void NetworkService::logEventWithTime(time_t t, const char* type, const char* data) {
-    char ds[16], ts[16]; struct tm ti; localtime_r(&t, &ti);
+    char ds[16], ts[16]; struct tm ti = {0}; localtime_r(&t, &ti);
     if (t < 1000000) { strcpy(ds, "BOOT"); strcpy(ts, "BOOT"); }
     else { strftime(ds, 16, "%Y-%m-%d", &ti); strftime(ts, 16, "%H:%M:%S", &ti); }
     char msg[128]; sprintf(msg, "%s|%s|%s|%s", ds, ts, type, data);
+    Serial.printf("[LOG] %s\n", msg);
     if (_fsReady) {
         _rotateLogs(); File f = LittleFS.open("/log.txt", FILE_APPEND);
         if (f) { f.println(msg); f.close(); }
+        else { Serial.println("[FS] Error opening log.txt for append"); }
     }
 }
 
