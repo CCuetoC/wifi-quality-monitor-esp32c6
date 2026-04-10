@@ -124,8 +124,3 @@ Estructurado mediante un flujo de trabajo asistido por LLM (Antigravity), priori
 
 1. **Configurar Credenciales**: Renombrar `.env.example` a `.env` y configurar las credenciales de red.
 2. **Compilación y Carga**: Usar PlatformIO (`pio run --target upload`).
-
----
-
-## Licencia y Autoría
-Este proyecto está bajo la licencia **MIT**. Desarrollado y orquestado por [César Cueto](https://github.com/CCuetoC).
