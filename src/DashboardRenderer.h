@@ -14,7 +14,7 @@ public:
                        const QualityAnalyzer::HealthMetrics& health, 
                        const int* history, int historySize, int circularIndex,
                        String uptime, int reconnects, float disconnectRate);
-    void drawDisconnected();
+    void drawDisconnected(String uptime, int reconnects, float disconnectRate);
 
 private:
     class LGFX_C6 : public lgfx::LGFX_Device {

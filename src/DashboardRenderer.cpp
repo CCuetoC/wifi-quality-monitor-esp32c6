@@ -69,10 +69,7 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
     _drawHistoryGraph(history, historySize, circularIndex, statusColor);
 
     // Etiqueta de Ventana Temporal (Claridad Operativa)
-    _canvas.setTextSize(1);
-    _canvas.setTextColor(TFT_DARKGREY);
-    _canvas.setTextDatum(top_right);
-    _canvas.drawString("TREND: 60 SAMPLES (30s)", _canvas.width() - 22, 62);
+    _canvas.drawString("TREND: 50 SAMPLES (10s)", _canvas.width() - 22, 62);
     
     _drawFooter(net, health, uptime, reconnects, disconnectRate);
     
@@ -82,7 +79,7 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
 uint16_t DashboardRenderer::_getColorForState(QualityAnalyzer::HealthState state) {
     switch (state) {
         case QualityAnalyzer::EXCELLENT: return 0x07E0; // TFT_GREEN
-        case QualityAnalyzer::GOOD:      return 0x07E0; // TFT_GREEN (Podría ser CYAN 0x07FF)
+        case QualityAnalyzer::GOOD:      return 0x07FF; // TFT_CYAN
         case QualityAnalyzer::DEGRADED:  return 0xFFE0; // TFT_YELLOW
         case QualityAnalyzer::CRITICAL:  return 0xF800; // TFT_RED
         default:                         return 0xFFFF; // TFT_WHITE
@@ -173,10 +170,10 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, cons
     _canvas.print("UPTIME: ");
     _canvas.print(uptime);
     _canvas.print(" | DR: ");
-    _canvas.printf("%.1f/hr", disconnectRate);
+    _canvas.printf("%.2f/hr", disconnectRate);
 }
 
-void DashboardRenderer::drawDisconnected() {
+void DashboardRenderer::drawDisconnected(String uptime, int reconnects, float disconnectRate) {
     _canvas.fillScreen(TFT_BLACK);
     _canvas.setTextColor(TFT_RED);
     _canvas.setTextSize(5);
@@ -189,8 +186,13 @@ void DashboardRenderer::drawDisconnected() {
     
     _canvas.setTextSize(1);
     _canvas.setTextColor(TFT_LIGHTGREY);
-    _canvas.setCursor(20, 150);
-    _canvas.printf("SYSTEM IDLE | WAITING FOR CONNECTION...");
+    _canvas.setCursor(20, 140);
+    _canvas.print("SYSTEM IDLE | WAITING FOR HANDSHAKE...");
+    
+    // Telemetría básica persistente durante el downtime
+    _canvas.setTextColor(TFT_DARKGREY);
+    _canvas.setCursor(20, 155);
+    _canvas.printf("UPTIME: %s | DR: %.2f/hr", uptime.c_str(), disconnectRate);
     
     _canvas.pushSprite(&_tft, 0, 0);
 }

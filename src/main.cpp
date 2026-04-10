@@ -5,22 +5,21 @@
 #include "QualityAnalyzer.h"
 #include "DashboardRenderer.h"
 
-// Configuración de Watchdog (Industrial Robustness)
 #define WDT_TIMEOUT_SECONDS 15
+#define UI_REFRESH_MS 250
 
-// Instancias de Módulos
 NetworkService network;
 QualityAnalyzer analyzer;
 DashboardRenderer renderer;
 
-// LED de Status
 #define LED_PIN 5
+unsigned long lastUIUpdate = 0;
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n--- WIFI QUALITY MONITOR M1 START ---");
+    Serial.println("\n--- WIFI QUALITY MONITOR START ---");
     
-    // Inicializar Watchdog (Versión compatible)
+    // Watchdog Configuration
     #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
         esp_task_wdt_config_t twdt_config = {
             .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,
@@ -34,48 +33,36 @@ void setup() {
     esp_task_wdt_add(NULL); 
     
     pinMode(LED_PIN, OUTPUT);
-    
-    // Inicializar Pantalla
     renderer.begin();
     renderer.drawBootScreen("INITIALIZING...");
     
-    // Inicializar Red
     network.begin(WIFI_SSID, WIFI_PASS);
-    
     Serial.println("System Ready.");
 }
 
 void loop() {
-    // Alimentar al Perro Guardián (Keep-alive)
     esp_task_wdt_reset();
-    
-    // Actualizar Servicios
     network.update();
     
-    // Obtener Datos y Analizar (Diagnóstico Dual)
-    NetworkService::NetworkData netData = network.getData();
-    
-    if (netData.connected) {
-        // QoS Logic: Usamos la latencia externa (WAN) para calcular la salud real del enlace
-        QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
+    // Non-blocking UI Refresh Loop
+    if (millis() - lastUIUpdate >= UI_REFRESH_MS) {
+        lastUIUpdate = millis();
         
-        // Circular Buffer Storage: Registro en el historial para series temporales
-        analyzer.addSample(health.score);
+        NetworkService::NetworkData netData = network.getData();
         
-        // Rasterization & Display Swap: Renderizar Dashboard con métricas industriales y persistencia
-        renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex(),
-                               network.getUptimeString(), network.getReconnectCount(), network.getDisconnectRate());
-        
-        // Visual Handshake: Retroalimentación física vía LED según RSSI
-        digitalWrite(LED_PIN, (netData.rssi > -70) ? HIGH : LOW);
-        
-    } else {
-        // Estado Desconectado
-        renderer.drawDisconnected();
-        
-        // Blink de alerta en LED
-        digitalWrite(LED_PIN, (millis() % 500 < 250) ? HIGH : LOW);
+        if (netData.connected) {
+            // Análisis de salud basado en latencia WAN (Internet)
+            QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
+            analyzer.addSample(health.score);
+            
+            renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex(),
+                                   network.getUptimeString(), network.getReconnectCount(), network.getDisconnectRate());
+            
+            digitalWrite(LED_PIN, (netData.rssi > -70) ? HIGH : LOW);
+        } else {
+            // Telemetría básica persistente incluso sin enlace WiFi
+            renderer.drawDisconnected(network.getUptimeString(), network.getReconnectCount(), network.getDisconnectRate());
+            digitalWrite(LED_PIN, (millis() % 500 < 250) ? HIGH : LOW);
+        }
     }
-    
-    delay(200); 
 }

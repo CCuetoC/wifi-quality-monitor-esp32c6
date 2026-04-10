@@ -1,0 +1,9 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Network Configuration
+// Renombrar este archivo a config.h y completar los campos
+#define WIFI_SSID "TU_SSID"
+#define WIFI_PASS "TU_PASSWORD"
+
+#endif

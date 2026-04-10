@@ -1,59 +1,71 @@
 #include "QualityAnalyzer.h"
 
-// Colores simplificados (se mapearán en el Renderer si es necesario)
-#define VAL_GREEN  0x07E0
-#define VAL_YELLOW 0xFFE0
-#define VAL_ORANGE 0xFD20
-#define VAL_RED    0xF800
-
 QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pingMs) {
     HealthMetrics metrics;
     
-    // Convergence: Implementación de promedios móviles para mitigar el ruido en la capa física
+    // Warm-up: Inicialización de buffers con el primer dato real para evitar rampa desde cero
+    if (!_isInitialized) {
+        for(int i=0; i<MA_SIZE; i++) {
+            _rssiBuffer[i] = rssi;
+            _pingBuffer[i] = (pingMs == -1 ? 500 : pingMs);
+        }
+        _isInitialized = true;
+    }
+
+    // Convergence: Promedios móviles para mitigar ruido en la capa física
     int avgRSSI = _addToMovingAverage(_rssiBuffer, rssi, _rssiIndex, MA_SIZE);
     int avgPing = _addToMovingAverage(_pingBuffer, (pingMs == -1 ? 500 : pingMs), _pingIndex, MA_SIZE);
 
-    // Analytics: Cálculo de Jitter (variabilidad) basado en el rango del buffer histórico
-    int minR = 0, maxR = -110;
-    for(int i=0; i<MA_SIZE; i++) {
+    // Analytics: Cálculo de Jitter basado en el rango real del buffer (sin sesgo de ceros)
+    int minR = _rssiBuffer[0], maxR = _rssiBuffer[0];
+    for(int i=1; i<MA_SIZE; i++) {
         if(_rssiBuffer[i] < minR) minR = _rssiBuffer[i];
         if(_rssiBuffer[i] > maxR) maxR = _rssiBuffer[i];
     }
-    metrics.jitter = (minR == 0) ? 0 : (maxR - minR);
+    metrics.jitter = maxR - minR;
     metrics.isStable = (metrics.jitter <= 10); 
 
-    // Score Mapping: Transformación lineal de métricas crudas a índices porcentuales
+    // Score Mapping: Estandardización de métricas
     int rssiScore = _mapRSSI(avgRSSI);
     int pingScore = _mapLatency(avgPing);
     
-    // Exception: Manejo de pérdida total de paquetes ICMP
-    if (pingMs == -1 && avgPing >= 500) {
-        rssiScore = 0;
-        pingScore = 0;
-    }
-
-    // Weighted QoS: Ponderación basada en impacto operativo (60% RSSI, 40% Latency)
+    // Weighted QoS: Ponderación 60/40
     metrics.score = (rssiScore * 0.6) + (pingScore * 0.4);
     metrics.score = constrain(metrics.score, 0, 100);
 
-    // State Machine: Clasificación basada en umbrales con Histéresis (Zona muerta de 5 puntos)
+    // State Machine: Histéresis funcional de 5 puntos
     int margin = 5;
-    
+    HealthState nextState = _lastState;
+
     if (metrics.score >= 91) {
-        metrics.state = EXCELLENT;
-    } else if (metrics.score >= 71) {
-        // Solo bajar a DEGRADED si cae por debajo de 66 (71 - 5)
-        if (_lastState == EXCELLENT || metrics.score >= 71) metrics.state = GOOD;
-        else if (_lastState == GOOD && metrics.score < 66) metrics.state = DEGRADED;
-    } else if (metrics.score >= 41) {
-        // Solo bajar a CRITICAL si cae por debajo de 36 (41 - 5)
-        if (_lastState == GOOD || metrics.score >= 41) metrics.state = DEGRADED;
-        else if (_lastState == DEGRADED && metrics.score < 36) metrics.state = CRITICAL;
-    } else {
-        metrics.state = CRITICAL;
+        nextState = EXCELLENT;
+    } 
+    else if (metrics.score >= 71) {
+        // Para subir de DEGRADED a GOOD necesita 71. 
+        // Para bajar de EXCELLENT a GOOD necesita caer de 91 - margin (no aplica aquí por el primer if).
+        if (_lastState == EXCELLENT || _lastState == DEGRADED || metrics.score >= 71) {
+            nextState = GOOD;
+        }
+    } 
+    else if (metrics.score >= 41) {
+        // Histéresis GOOD -> DEGRADED: Solo baja si score < 66 (71 - 5)
+        if (_lastState == GOOD && metrics.score >= (71 - margin)) {
+            nextState = GOOD;
+        } else {
+            nextState = DEGRADED;
+        }
+    } 
+    else {
+        // Histéresis DEGRADED -> CRITICAL: Solo baja si score < 36 (41 - 5)
+        if (_lastState == DEGRADED && metrics.score >= (41 - margin)) {
+            nextState = DEGRADED;
+        } else {
+            nextState = CRITICAL;
+        }
     }
 
-    _lastState = metrics.state;
+    metrics.state = nextState;
+    _lastState = nextState;
 
     // Label Mapping
     switch(metrics.state) {
@@ -67,7 +79,6 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
 }
 
 int QualityAnalyzer::_addToMovingAverage(int* buffer, int newValue, int& index, int size) {
-    // Memory Management: Actualización de buffer circular in-place
     buffer[index] = newValue;
     index = (index + 1) % size;
     
@@ -77,7 +88,6 @@ int QualityAnalyzer::_addToMovingAverage(int* buffer, int newValue, int& index, 
 }
 
 void QualityAnalyzer::addSample(int score) {
-    // History Persistence: Indexación circular para series temporales
     _history[_historyIndex] = score;
     _historyIndex = (_historyIndex + 1) % HISTORY_SIZE;
 }
@@ -85,7 +95,6 @@ void QualityAnalyzer::addSample(int score) {
 int QualityAnalyzer::_mapRSSI(int rssi) {
     if (rssi > -50) return 100;
     if (rssi < -95) return 0;
-    // Linear Mapping: Estandarización de niveles de potencia RF
     return map(rssi, -95, -50, 0, 100);
 }
 
@@ -93,6 +102,5 @@ int QualityAnalyzer::_mapLatency(int ms) {
     if (ms < 0) return 0;       
     if (ms <= 50) return 100;   
     if (ms >= 500) return 0;    
-    // Inverse Mapping: A mayor latencia, menor puntaje de salud
     return map(ms, 50, 500, 100, 0);
 }

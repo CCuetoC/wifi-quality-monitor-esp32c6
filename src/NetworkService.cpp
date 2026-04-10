@@ -1,15 +1,13 @@
 #include "NetworkService.h"
 #include <time.h>
-#include <Preferences.h>
-
-Preferences preferences;
 
 void NetworkService::begin(const char* ssid, const char* pass) {
     if (WiFi.status() == WL_CONNECTED) return;
     
     // NVS Persistence: Recuperar contador de reconexiones históricas
-    preferences.begin("net_stats", false);
-    _reconnectCount = preferences.getInt("recon", 0);
+    _prefs.begin("net_stats", false);
+    _reconnectCount = _prefs.getInt("recon", 0);
+    _prefs.end(); // Cerrar handle inmediatamente tras lectura
     
     _startTime = millis();
     
@@ -30,7 +28,11 @@ void NetworkService::update() {
             WiFi.disconnect();
             WiFi.begin();
             _reconnectCount++;
-            preferences.putInt("recon", _reconnectCount);
+            
+            _prefs.begin("net_stats", false);
+            _prefs.putInt("recon", _reconnectCount);
+            _prefs.end();
+            
             logEvent("LINK_DOWN", "Attempting Reconnection");
         }
     } else {

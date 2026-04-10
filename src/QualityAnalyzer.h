@@ -31,9 +31,7 @@ private:
     int _history[HISTORY_SIZE] = {0};
     int _historyIndex = 0;
     
-    static const int VAL_GREEN  = 0x07E0;
-    static const int VAL_YELLOW = 0xFFE0;
-    static const int VAL_RED    = 0xF800;
+    bool _isInitialized = false;
 
     // Buffers de Promedio Móvil
     static const int MA_SIZE = 10;

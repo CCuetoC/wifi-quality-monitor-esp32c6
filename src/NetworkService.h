@@ -3,6 +3,7 @@
 
 #include <WiFi.h>
 #include <ESP32Ping.h>
+#include <Preferences.h>
 
 class NetworkService {
 public:
@@ -39,6 +40,7 @@ private:
     unsigned long _lastReconnectAttempt = 0;
     const unsigned long _maxReconnectInterval = 300000; // 5 minutos
     
+    Preferences _prefs;
     void _performPing();
 };
 
