@@ -1,28 +1,29 @@
 # WiFi Quality Monitor (ESP32-C6)
+## Professional Network Diagnostic Tool for Industrial Environments
 
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-v6.1.13-orange)
 ![Framework](https://img.shields.io/badge/Framework-Arduino-blue)
 ![Hardware](https://img.shields.io/badge/Hardware-ESP32--C6-green)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-![Tool](https://img.shields.io/badge/Tool-Antigravity%20%28Google%29-lightgrey)
 
-Un monitor de señal WiFi de grado industrial diseñado para el **WaveShare ESP32-C6-LCD-1.47**. Este proyecto implementa una arquitectura modular por capas y un algoritmo de calidad basado en estándares de la industria (IEEE 802.11).
+Este proyecto implementa un monitor de calidad de red en tiempo real diseñado para entornos donde la estabilidad de la conexión es crítica. A diferencia de los monitores convencionales basados solo en RSSI, esta herramienta utiliza un **diagnóstico de doble capa (LAN/WAN)** para identificar cuellos de botella exactos.
 
 ![Hardware Demo 1](docs/img/Photo01.jpg)
 
-## 🌟 Características Técnicas
+---
 
-- **Arquitectura Modular**: Separación estricta entre servicios de red, análisis de métricas y renderizado visual.
-- **QoS Quality Score**: Cálculo ponderado de salud de red (60% Potencia RSSI, 40% Latencia Ping).
-- **Double Buffering**: Interfaz fluida sin parpadeos vía LovyanGFX.
-- **Diagnóstico Activo**: Monitoreo constante de latencia contra servidores core (8.8.8.8).
-- **Semáforo Visual Industrial**: Clasificación: Excellent, Good, Fair, Poor y Critical.
+## Características Técnicas
+
+- **Diagnóstico de Doble Capa**: Monitoreo simultáneo de latencia local (Gateway) y externa (DNS/Cloud), permitiendo diferenciar fallos de infraestructura local de problemas de ISP.
+- **Análisis de Calidad Basado en Estándares**: Algoritmo de puntuación (0-100%) que pondera la potencia de señal (RSSI) y el jitter de latencia.
+- **Optimización Visual**: Implementación de Double Buffering mediante la librería LovyanGFX para una actualización de pantalla fluida a 1.47" sin parpadeos.
+- **Resiliencia Industrial**: Sistema de auto-recuperación ante pérdida de señal y Watchdog Timer (WDT) activo para garantizar operación 24/7 sin bloqueos.
 
 ---
 
-## 🏗️ Arquitectura del Sistema (Módulo 1)
+## Arquitectura de Software
 
-El sistema se divide en capas de responsabilidad única para asegurar la escalabilidad:
+El sistema sigue una arquitectura modular para facilitar la escalabilidad y el mantenimiento:
 
 ```mermaid
 graph TD
@@ -30,33 +31,37 @@ graph TD
     A --> C[QualityAnalyzer]
     A --> D[DashboardRenderer]
     
-    B -->|Datos Raw: RSSI, IP, Ping| A
-    A -->|Calcula Calidad| C
-    C -->|Métricas: Score, Label, Color| A
-    A -->|Dibuja UI| D
+    B -->|Diagnóstico Dual: GW/WAN| A
+    A -->|Procesamiento QoS| C
+    C -->|Métricas de Salud| A
+    A -->|Capa de Renderizado| D
 ```
 
-### Descripción de Capas:
-1. **NetworkService**: Capa de transporte. Gestiona WiFi y ejecución asíncrona de Pings.
-2. **QualityAnalyzer**: Capa lógica. Convierte dBm y ms en un índice de salud (0-100%) siguiendo umbrales de la IEEE.
-3. **DashboardRenderer**: Capa de presentación. Encapsula LovyanGFX y gestiona el Double Buffering.
+1. **NetworkService**: Gestión de la pila WiFi 6 (802.11ax) y reconexión automática con exponential backoff.
+2. **QualityAnalyzer**: Motor de cálculo que procesa promedios móviles de latencia, potencia de señal e índice de estabilidad.
+3. **DashboardRenderer**: Capa de presentación desacoplada de la lógica de negocio para permitir cambios de hardware de visualización con mínimo impacto.
 
 ---
 
-## 📊 Algoritmo de Calidad (Industrial Spec)
+## Metodología de Desarrollo: Hybrid Rapid Prototyping
 
-El monitor utiliza un sistema de **Promedio Móvil (Moving Average)** de 10 muestras para suavizar el ruido y una fórmula de ponderación estricta:
+Este repositorio es un caso de estudio en **Ingeniería Asistida por LLM**. El 100% del código fue generado mediante la orquestación de modelos de lenguaje bajo supervisión arquitectónica humana.
 
-$$Quality Score = (0.6 \times RSSI_{score}) + (0.4 \times Latency_{score})$$
+**Impacto de la metodología:**
+- **Eficiencia**: Reducción del tiempo de desarrollo de días a horas.
+- **Calidad**: Estructura modular consistente y documentación técnica integrada desde la primera versión.
+- **Enfoque**: El talento humano se centró en la definición de requerimientos técnicos y estándares industriales, delegando la ejecución sintáctica a la IA (**Antigravity by Google**).
 
-### Umbrales Operativos:
+---
 
-| Rango (%) | Estado | Indicación Visual |
-| :--- | :--- | :--- |
-| **91 - 100** | **EXCELLENT** | Verde Sólido |
-| **71 - 90** | **GOOD** | Verde / Cyan |
-| **41 - 70** | **DEGRADED** | Amarillo / Naranja |
-| **0 - 40** | **CRITICAL** | Rojo (Alerta) |
+## Benchmarks de Desempeño (Industrial Ready)
+
+| Métrica | Valor | Estado |
+| :--- | :--- | :---: |
+| **Uso de Heap** | ~180 KB Free | ✅ Estable |
+| **Resiliencia** | Watchdog 15s | ✅ Auto-recovery |
+| **Diagnóstico** | Dual (LAN/WAN) | ✅ Activo |
+| **Ciclo Main Loop**| < 250 ms | ✅ Real-time |
 
 ---
 
@@ -68,44 +73,23 @@ $$Quality Score = (0.6 \times RSSI_{score}) + (0.4 \times Latency_{score})$$
 
 ---
 
-## 🛠️ Especificaciones Técnicas Hardware
+## Especificaciones de Hardware
 
 | Componente | Detalle |
 | :--- | :--- |
-| **MCU** | ESP32-C6 (RISC-V 32-bit @ 160MHz) |
+| **MCU** | ESP32-C6 (Soporte nativo para WiFi 6) |
 | **Display** | 1.47" LCD (ST7789, 172x320 px) |
-| **Conectividad** | WiFi 6 (802.11 ax/b/g/n) |
+| **Frecuencia** | 160MHz RISC-V |
 | **Pines SPI** | SCK(7), MOSI(6), CS(14), DC(15), RST(21) |
-| **Backlight** | Pin 22 (PWM habilitado) |
-
----
-
-## 🧭 Filosofía de Diseño: AI-Orchestration
-
-Este proyecto no es solo código; es una demostración de **Ingeniería de Orquestación**. 
-- **Arquitecto Humano**: César Cueto define la lógica de negocio, los estándares industriales (IEEE 802.11 QoS) y la visión de producto.
-- **Brazo Ejecutor (IA)**: **Antigravity (Google)** implementa la arquitectura, optimiza algoritmos y garantiza la robustez mediante iteraciones de alto rendimiento.
-
----
-
-## 📈 Benchmarks de Desempeño (Industrial Ready)
-
-| Métrica | Valor | Estado |
-| :--- | :--- | :---: |
-| **Uso de Heap** | ~180 KB Free | ✅ Estable |
-| **Resiliencia** | Watchdog 10s | ✅ Auto-recovery |
-| **Diagnóstico** | Dual (LAN/WAN) | ✅ Activo |
 
 ---
 
 ## 🗺️ Roadmap de Desarrollo
 
-- [x] **Fase 1**: Arquitectura modular básica y renderizado estable.
-- [x] **Fase 2**: Algoritmo de calidad industrial y Mega-Graph.
-- [x] **Fase 3**: Robustez Industrial (Backoff) y Analítica (Stability Index).
-- [x] **Fase 4**: Diagnóstico Dual e Industrial Watchdog.
-- [ ] **Fase 5**: MQTT / SCADA Integration.
-- [ ] **Fase 6**: Servidor Web Embebido.
+- [x] **v2.0**: Implementación de diagnóstico LAN/WAN y Robusta Industrial (WDT).
+- [x] **v1.0**: Prototipo inicial con monitoreo básico de RSSI.
+- [ ] **v3.0**: Integración MQTT / SCADA industrial.
+- [ ] **v4.0**: Servidor Web Embebido para monitoreo remoto.
 
 ---
 
@@ -120,16 +104,13 @@ Este proyecto no es solo código; es una demostración de **Ingeniería de Orque
 
 ---
 
-## 🚀 Instalación y Desarrollo
+## Configuración y Despliegue
 
-1. **Configurar Credenciales**:
-   Copia `.env.example` a `.env` y añade tus datos.
-2. **Compilación y Carga**:
-   ```bash
-   pio run --target upload
-   ```
+1. **Clonar el repositorio.**
+2. **Configurar Credenciales**: Renombrar `.env.example` a `.env` y configurar las credenciales de red.
+3. **Compilación y Carga**: Usar PlatformIO (`pio run --target upload`).
 
 ---
 
-## 📄 Licencia
-Este proyecto está bajo la licencia **MIT**. Desarrollado por [César Cueto](https://github.com/CCuetoC).
+## Licencia
+Este proyecto está bajo la licencia **MIT**. Desarrollado y orquestado por [César Cueto](https://github.com/CCuetoC).
