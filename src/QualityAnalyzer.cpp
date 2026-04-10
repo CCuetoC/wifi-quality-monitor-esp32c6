@@ -41,9 +41,10 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
         nextState = EXCELLENT;
     } 
     else if (metrics.score >= 71) {
-        // Para subir de DEGRADED a GOOD necesita 71. 
-        // Para bajar de EXCELLENT a GOOD necesita caer de 91 - margin (no aplica aquí por el primer if).
-        if (_lastState == EXCELLENT || _lastState == DEGRADED || metrics.score >= 71) {
+        // Histéresis EXCELLENT -> GOOD: Solo baja si score < 86 (91 - 5)
+        if (_lastState == EXCELLENT && metrics.score >= (91 - margin)) {
+            nextState = EXCELLENT;
+        } else {
             nextState = GOOD;
         }
     } 

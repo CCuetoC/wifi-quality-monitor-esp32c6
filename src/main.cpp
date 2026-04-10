@@ -71,13 +71,20 @@ void loop() {
 
         if (netData.connected) {
             QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
-            
-            // Decoupling: Muestreo de tendencia cada 3 segundos para mayor resolución
+            // Inyectar métricas para API /status
+            network.setQuality(health.score, health.jitter);
+
+            // CAPTURA: Seguimos muestreando cada 3s para suavidad local
             if (millis() - lastHistorySample >= 3000) {
                 analyzer.addSample(health.score);
                 lastHistorySample = millis();
-                // Persistencia inmediata para asegurar supervivencia ante crash
+            }
+
+            // PERSISTENCIA: Solo cada 60s para proteger la vida útil de la Flash
+            static unsigned long lastTrendSave = 0;
+            if (millis() - lastTrendSave >= 60000) {
                 network.saveTrend(analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex());
+                lastTrendSave = millis();
             }
             
             // Detección y registro de cambio de estado Semántico

@@ -19,6 +19,8 @@ public:
         int pingInternet;    // Ping a 8.8.8.8 (Internet)
         String ip;
         int channel;
+        int score;           // QoS Score (0-100)
+        int jitter;          // Signal Stability
     };
 
     void begin(const char* ssid, const char* pass);
@@ -32,6 +34,7 @@ public:
     int getBootPhase() { return _bootPhase; }
     int getReconnectCount();
     float getDisconnectRate();
+    void setQuality(int score, int jitter);
 
     // Trend Persistence
     bool saveTrend(const int* history, int size, int index);
@@ -61,6 +64,8 @@ private:
     bool _fsReady = false;
     int _bootPhase = 0; // 0: WiFi Only, 1: FS, 2: Web, 3: Full
     int _gmtOffset = -5;
+    int _lastScore = 0;
+    int _lastJitter = 0;
     char _apSSID[32];
     
     Preferences _prefs;
@@ -72,6 +77,7 @@ private:
     void _handleRoot();
     void _handleLogs();
     void _handleConfig();
+    void _rotateLogs();
 };
 
 #endif
