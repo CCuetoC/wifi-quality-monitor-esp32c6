@@ -104,9 +104,9 @@ void DashboardRenderer::_drawHeader(int score, const char* label, uint16_t color
 
 void DashboardRenderer::_drawHistoryGraph(const int* history, int size, int circularIndex, uint16_t color) {
     int graphX = 20;
-    int graphY = 50; // Bajamos el gráfico 5px para separar del header
+    int graphY = 50; 
     int graphW = 280;
-    int graphH = 82; // Ajustamos altura para dejar espacio al footer
+    int graphH = 75; // Reducido para dar aire al footer
 
     _canvas.drawRect(graphX, graphY, graphW, graphH, 0x18C3);
     for(int i=1; i<4; i++) {
@@ -133,10 +133,10 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, cons
     _canvas.setTextDatum(bottom_left);
     
     // Footer: Posicionamiento preciso para evitar desbordes (Y=135+)
-    _canvas.setCursor(20, 137);
+    _canvas.setCursor(20, 142);
     _canvas.printf("RSSI: %d dBm | IP: %s | CH: %d", net.rssi, net.ip.c_str(), net.channel);
     
-    _canvas.setCursor(20, 149);
+    _canvas.setCursor(20, 154);
     const char* stabilityTxt = health.isStable ? "STEADY" : "JITTERY";
     uint16_t stabColor = health.isStable ? 0x07E0 : 0xFFE0; 
     
@@ -153,7 +153,7 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, cons
     _canvas.print(stabilityTxt);
     
     _canvas.setTextColor(TFT_DARKGREY);
-    _canvas.setCursor(20, 161);
+    _canvas.setCursor(20, 166);
     _canvas.print("UPTIME: ");
     _canvas.print(uptime);
     _canvas.print(" | DR: ");
