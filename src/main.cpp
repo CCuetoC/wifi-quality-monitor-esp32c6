@@ -14,6 +14,7 @@ DashboardRenderer renderer;
 
 #define LED_PIN 5
 unsigned long lastUIUpdate = 0;
+QualityAnalyzer::HealthState lastState = QualityAnalyzer::CRITICAL;
 
 void setup() {
     Serial.begin(115200);
@@ -55,6 +56,14 @@ void loop() {
             QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
             analyzer.addSample(health.score);
             
+            // Detección y registro de cambio de estado (Auditoría)
+            if (health.state != lastState) {
+                char stateBuf[32];
+                sprintf(stateBuf, "From %d to %s", (int)lastState, health.label);
+                network.logEvent("STATE_CHANGE", stateBuf);
+                lastState = health.state;
+            }
+
             renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex(),
                                    network.getUptimeString(), network.getReconnectCount(), network.getDisconnectRate());
             

@@ -4,9 +4,14 @@
 #include <WiFi.h>
 #include <ESP32Ping.h>
 #include <Preferences.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+#include <LittleFS.h>
 
 class NetworkService {
 public:
+    NetworkService() : _server(80) {}
+
     struct NetworkData {
         bool connected;
         int rssi;
@@ -47,8 +52,18 @@ private:
     unsigned long _historicalUptime = 0;
     int _historicalReconnects = 0;
     
+    bool _isConfigMode = false;
+    char _apSSID[32];
+    
     Preferences _prefs;
+    WebServer _server;
+    DNSServer _dnsServer;
+    
     void _performPing();
+    void _setupWebServer();
+    void _handleRoot();
+    void _handleLogs();
+    void _handleConfig();
 };
 
 #endif
