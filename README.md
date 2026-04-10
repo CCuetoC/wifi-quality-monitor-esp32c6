@@ -64,7 +64,7 @@ Estructura lista para integración con **Brokers MQTT** o bases de datos NoSQL (
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 ```mermaid
 graph TD
@@ -80,7 +80,7 @@ graph TD
 
 ---
 
-## 🚦 Guía de Interpretación Operativa
+## Guía de Interpretación Operativa
 
 | Estado | Rango | Interpretación | Acción Sugerida |
 | :--- | :---: | :--- | :--- |
@@ -91,7 +91,7 @@ graph TD
 
 ---
 
-## 🚫 Limitaciones Técnicas (Caveats)
+## Limitaciones Técnicas (Caveats)
 
 Este dispositivo es una herramienta de diagnóstico de capa de aplicación y transporte. **No realiza:**
 1. **Análisis de Espectro RF**: No detecta interferencias en niveles físicos de radio.
@@ -100,17 +100,17 @@ Este dispositivo es una herramienta de diagnóstico de capa de aplicación y tra
 
 ---
 
-## 📈 Benchmarks de Resiliencia
+## Benchmarks de Resiliencia
 
 | Métrica | Valor | Certificación |
 | :--- | :--- | :---: |
-| **Stability Test** | > 168h Continuas | ✅ Passed |
-| **Uptime Management**| Hardware Watchdog | ✅ Active |
-| **State Stability** | Hysteresis (5 pts) | ✅ Active |
+| **Stability Test** | > 168h Continuas | Passed |
+| **Uptime Management**| Hardware Watchdog | Active |
+| **State Stability** | Hysteresis (5 pts) | Active |
 
 ---
 
-## 🗺️ Desarrollo y Metodología
+## Desarrollo y Metodología
 
 Estructurado mediante un flujo de trabajo asistido por LLM (Antigravity), priorizando la consistencia arquitectónica sobre la codificación manual.
 
@@ -120,7 +120,12 @@ Estructurado mediante un flujo de trabajo asistido por LLM (Antigravity), priori
 
 ---
 
-## 🚀 Instalación
-1. Renombrar `.env.example` a `.env`.
-2. Configurar credenciales.
-3. Cargar mediante PlatformIO (`pio run -t upload`).
+## Instalación
+
+1. **Configurar Credenciales**: Renombrar `.env.example` a `.env` y configurar las credenciales de red.
+2. **Compilación y Carga**: Usar PlatformIO (`pio run --target upload`).
+
+---
+
+## Licencia y Autoría
+Este proyecto está bajo la licencia **MIT**. Desarrollado y orquestado por [César Cueto](https://github.com/CCuetoC).
