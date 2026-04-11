@@ -144,7 +144,7 @@ void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, cons
     _canvas.setTextColor(net.pingGW == -1 ? TFT_RED : TFT_GREEN);
     _canvas.print(net.pingGW == -1 ? "FAIL" : String(net.pingGW).c_str());
     _canvas.setTextColor(TFT_LIGHTGREY);
-    _canvas.print(" | EXT: ");
+    _canvas.print(" | LAT: ");
     _canvas.setTextColor(net.pingInternet == -1 ? TFT_RED : TFT_GREEN);
     _canvas.print(net.pingInternet == -1 ? "FAIL" : String(net.pingInternet).c_str());
     _canvas.setTextColor(TFT_LIGHTGREY);

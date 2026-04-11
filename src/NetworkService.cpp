@@ -86,26 +86,18 @@ void NetworkService::update(FileLogger& logger) {
 
 void NetworkService::_performPing() {
     IPAddress gw = WiFi.gatewayIP();
-    IPAddress google(8, 8, 8, 8), cloud(1, 1, 1, 1), quad9(9, 9, 9, 9);
-    static int judge = 0; // V4.7: Rotación 4 objetivos
     
-    // Paso 1: Juez Local (Gateway)
+    // V4.8: Enfoque Maestro - Solo Google Hostname para veracidad absoluta
     bool gwOk = Ping.ping(gw, 2);
     _lastPingGW = gwOk ? Ping.averageTime() : -1;
     
     delay(100); yield(); // Limpieza de aire
     
-    // Paso 2: Juez Externo Rotativo (Incluye Hostname)
-    bool extOk = false; int extTime = -1; String n = "";
-    if (judge == 0)      { extOk = Ping.ping(google, 2); extTime = extOk ? Ping.averageTime() : -1; n = "GOOGLE_IP"; }
-    else if (judge == 1) { extOk = Ping.ping(cloud, 2);  extTime = extOk ? Ping.averageTime() : -1; n = "CLOUD"; }
-    else if (judge == 2) { extOk = Ping.ping(quad9, 2);  extTime = extOk ? Ping.averageTime() : -1; n = "QUAD9"; }
-    else                 { extOk = Ping.ping("www.google.com", 2); extTime = extOk ? Ping.averageTime() : -1; n = "GOOGLE_WEB"; }
+    bool extOk = Ping.ping("www.google.com", 2);
+    _lastPingInternet = extOk ? Ping.averageTime() : -1;
     
-    _lastPingInternet = extTime;
-    Serial.printf("[DIAG] GW:%s (%dms) | %s:%s (%dms)\n", 
-                  gwOk?"OK":"FAIL", _lastPingGW, n.c_str(), extOk?"OK":"FAIL", extTime);
-    judge = (judge + 1) % 4;
+    Serial.printf("[DIAG] GW:%s (%dms) | GOOGLE:%s (%dms)\n", 
+                  gwOk?"OK":"FAIL", _lastPingGW, extOk?"OK":"FAIL", _lastPingInternet);
 }
 
 void NetworkService::_setupWebServer(FileLogger& logger) {
@@ -129,7 +121,7 @@ void NetworkService::_handleRoot(FileLogger& logger) {
     h += "<h2>LIVE METRICS</h2><div class='grid'>";
     h += "<div class='card'><div>UPTIME</div><div class='val'>"+getUptimeString()+"</div></div>";
     h += "<div class='card'><div>RSSI</div><div class='val'>"+String(WiFi.RSSI())+" dBm</div></div><div class='card'><div>SCORE</div><div class='val'>"+String(_lastScore)+"%</div></div>";
-    h += "<div class='card'><div>GATEWAY</div><div class='val'>"+String(_lastPingGW)+" ms</div></div><div class='card'><div>INTERNET</div><div class='val'>"+String(_lastPingInternet)+" ms</div></div>";
+    h += "<div class='card'><div>GATEWAY</div><div class='val'>"+String(_lastPingGW)+" ms</div></div><div class='card'><div>LATENCY (ms)</div><div class='val'>"+String(_lastPingInternet)+" ms</div></div>";
     h += "<div class='card'><div>RAM (FREE)</div><div class='val'>"+String(ESP.getFreeHeap()/1024)+" KB</div></div><div class='card'><div>RECONS</div><div class='val'>"+String(_reconnectCount)+"</div></div></div>";
     
     h += "<h2>WIFI QUALITY</h2><div class='chart-box'><div class='axis-l'><div>100%</div><div>75%</div><div>50%</div><div>25%</div><div>0%</div></div><div class='canvas'><svg width='100%' height='100%' viewBox='0 0 600 110' preserveAspectRatio='none'>";
