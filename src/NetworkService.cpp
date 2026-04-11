@@ -81,17 +81,9 @@ void NetworkService::update(FileLogger& logger) {
 }
 
 void NetworkService::_performPing() {
-    static int t = 0; IPAddress g = WiFi.gatewayIP();
-    if (t == 0) { 
-        // V4.0: UN SOLO PAQUETE para evitar colgar el procesador (WDT safety)
-        _lastPingGW = Ping.ping(g, 1) ? Ping.averageTime() : -1; 
-    } else {
-        bool gOk = Ping.ping("8.8.8.8", 1); int gTime = gOk ? Ping.averageTime() : -1;
-        bool cOk = Ping.ping("1.1.1.1", 1); int cTime = cOk ? Ping.averageTime() : -1;
-        if (gOk || cOk) { if (gOk && cOk) _lastPingInternet = (gTime + cTime) / 2; else _lastPingInternet = gOk ? gTime : cTime; }
-        else { _lastPingInternet = -1; }
-    }
-    t = (t + 1) % 2;
+    // V4.1: Retorno al Origen - 1 paquete a Google (8.8.8.8) únicamente.
+    _lastPingGW = Ping.ping(WiFi.gatewayIP(), 1) ? Ping.averageTime() : -1;
+    _lastPingInternet = Ping.ping("8.8.8.8", 1) ? Ping.averageTime() : -1;
 }
 
 void NetworkService::_setupWebServer(FileLogger& logger) {
@@ -135,7 +127,10 @@ void NetworkService::_handleLogs(FileLogger& logger) {
     _server->sendContent("<h2>EVENT LOGGER</h2><div class='log-container'><div class='log-grid log-h'><div>DATE</div><div>TIME</div><div>EVENT</div><div>DESCRIPTION</div></div><div class='log-scroll'>");
     File f = LittleFS.open("/log.txt", FILE_READ); if (f.size() > 5000) f.seek(f.size() - 5000); String data = f.readString(); f.close();
     int lineStart = data.indexOf('\n') + 1; String buf[80]; int count = 0;
-    while(lineStart < data.length() && count < 80) { int next = data.indexOf('\n', lineStart); if (next == -1) next = data.length(); buf[count++] = data.substring(lineStart, next); lineStart = next + 1; }
+    while(lineStart < data.length() && count < 25) { // V4.1: Límite estricto 25 eventos
+        int next = data.indexOf('\n', lineStart); if (next == -1) next = data.length(); 
+        buf[count++] = data.substring(lineStart, next); lineStart = next + 1; 
+    }
     for(int i=count-1; i>=0; i--) { String l = buf[i]; int s1=l.indexOf('|'), s2=l.indexOf('|', s1+1), s3=l.indexOf('|', s2+1); if(s1>0 && s3>0) { String dt=l.substring(0,s1), tm=l.substring(s1+1,s2), tp=l.substring(s2+1,s3), msg=l.substring(s3+1); if (tp == "HEARTBEAT") continue; _server->sendContent("<div class='log-grid log-row'><div>"+dt+"</div><div>"+tm+"</div><div><span class='tag "+tp+"'>"+tp+"</span></div><div>"+msg+"</div></div>"); } }
     _server->sendContent("</div></div><script>setTimeout(()=>location.reload(),5000);</script></body></html>"); _server->client().stop();
 }
