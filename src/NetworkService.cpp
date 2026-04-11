@@ -87,7 +87,7 @@ void NetworkService::update(FileLogger& logger) {
 void NetworkService::_performPing() {
     IPAddress gw = WiFi.gatewayIP();
     IPAddress google(8, 8, 8, 8), cloud(1, 1, 1, 1), quad9(9, 9, 9, 9);
-    static int judge = 0; // V4.6: Rotación Round Robin
+    static int judge = 0; // V4.7: Rotación 4 objetivos
     
     // Paso 1: Juez Local (Gateway)
     bool gwOk = Ping.ping(gw, 2);
@@ -95,16 +95,17 @@ void NetworkService::_performPing() {
     
     delay(100); yield(); // Limpieza de aire
     
-    // Paso 2: Juez Externo Rotativo (Evita ráfagas)
+    // Paso 2: Juez Externo Rotativo (Incluye Hostname)
     bool extOk = false; int extTime = -1; String n = "";
-    if (judge == 0) { extOk = Ping.ping(google, 2); extTime = extOk ? Ping.averageTime() : -1; n = "GOOGLE"; }
-    else if (judge == 1) { extOk = Ping.ping(cloud, 2); extTime = extOk ? Ping.averageTime() : -1; n = "CLOUD"; }
-    else { extOk = Ping.ping(quad9, 2); extTime = extOk ? Ping.averageTime() : -1; n = "QUAD9"; }
+    if (judge == 0)      { extOk = Ping.ping(google, 2); extTime = extOk ? Ping.averageTime() : -1; n = "GOOGLE_IP"; }
+    else if (judge == 1) { extOk = Ping.ping(cloud, 2);  extTime = extOk ? Ping.averageTime() : -1; n = "CLOUD"; }
+    else if (judge == 2) { extOk = Ping.ping(quad9, 2);  extTime = extOk ? Ping.averageTime() : -1; n = "QUAD9"; }
+    else                 { extOk = Ping.ping("www.google.com", 2); extTime = extOk ? Ping.averageTime() : -1; n = "GOOGLE_WEB"; }
     
     _lastPingInternet = extTime;
     Serial.printf("[DIAG] GW:%s (%dms) | %s:%s (%dms)\n", 
                   gwOk?"OK":"FAIL", _lastPingGW, n.c_str(), extOk?"OK":"FAIL", extTime);
-    judge = (judge + 1) % 3;
+    judge = (judge + 1) % 4;
 }
 
 void NetworkService::_setupWebServer(FileLogger& logger) {
