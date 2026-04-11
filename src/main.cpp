@@ -4,6 +4,7 @@
 #include "NetworkService.h"
 #include "QualityAnalyzer.h"
 #include "DashboardRenderer.h"
+#include "FileLogger.h"
 
 #define WDT_TIMEOUT_SECONDS 15
 #define UI_REFRESH_MS 1000
@@ -11,6 +12,7 @@
 NetworkService network;
 QualityAnalyzer analyzer;
 DashboardRenderer renderer;
+FileLogger logger;
 
 #define LED_PIN 5
 unsigned long lastUIUpdate = 0;
@@ -19,7 +21,7 @@ QualityAnalyzer::HealthState lastState = QualityAnalyzer::CRITICAL;
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n--- WIFI QUALITY MONITOR START ---");
+    Serial.println("\n--- WIFI QUALITY MONITOR v4.0 START ---");
     
     // Watchdog Configuration (Diferido para estabilidad)
     #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -33,89 +35,89 @@ void setup() {
     
     pinMode(LED_PIN, OUTPUT);
     renderer.begin();
-    renderer.drawBootScreen("INITIALIZING...");
+    renderer.drawBootScreen("INDUSTRIAL V4.0...");
     
     network.begin(WIFI_SSID, WIFI_PASS);
     
-    // Activar el Watchdog SOLO cuando estemos listos para el loop
+    // El Watchdog se activa al final del setup
     esp_task_wdt_add(NULL); 
-    Serial.println("System Ready.");
 }
 
 void loop() {
     esp_task_wdt_reset();
-    network.update();
+    network.update(logger);
     
-    // Sincronización de Buffers tras reconexión (V2.1 - Sinceridad Industrial)
+    // Sincronización de Buffers tras reconexión
     if (network.consumeConnectionTrigger()) {
         analyzer.resetBuffers();
-        network.logEvent("SYS_STATUS", "Link Restored - Buffers Flushed");
+        logger.logEvent("SYS_STATUS", "Link Restored - Buffers Flushed");
     }
 
-    // Non-blocking UI Refresh Loop (Refresco de 1 segundo)
+    // Loop de Control Local (1s)
     if (millis() - lastUIUpdate >= UI_REFRESH_MS) {
         lastUIUpdate = millis();
-        
         NetworkService::NetworkData netData = network.getData();
         
-        // Recuperación de Historial (Solo una vez tras el arranque de archivos)
+        // Restauración de Historial Forense
         static bool historyLoaded = false;
         if (!historyLoaded) {
             if (network.getBootPhase() >= 1) {
                 int hist[50], idx;
-                if (network.loadTrend(hist, 50, &idx)) {
+                if (logger.loadTrend(hist, 50, &idx)) {
                     analyzer.loadHistory(hist, 50, idx);
-                    network.logEvent("SYS_STATUS", "Visual History Restored");
+                    logger.logEvent("SYS_STATUS", "Visual History Restored");
                 }
                 historyLoaded = true;
             } else {
-                // Mantener pantalla de carga mientras LittleFS despierta
-                renderer.drawBootScreen("RESTORING HISTORY...");
+                renderer.drawBootScreen("ACCESSING FILES...");
                 return;
             }
         }
 
         if (netData.connected) {
+            // QoS Analysis
             QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
-            // Inyectar métricas para API /status
             network.setQuality(health.score, health.jitter);
 
-            // CAPTURA: Seguimos muestreando cada 2s para suavidad local (v2.4)
+            // Muestreo de Calidad (cada 2s)
             if (millis() - lastHistorySample >= 2000) {
                 analyzer.addSample(health.score);
                 lastHistorySample = millis();
             }
 
-            // MUESTREO DE RAM (V2.3): Cada 10 segundos para analítica de estabilidad
+            // Muestreo de RAM (cada 10s) - Escala 512 KB
             static unsigned long lastRamSample = 0;
             if (millis() - lastRamSample >= 10000) {
-                analyzer.addRamSample((ESP.getFreeHeap() * 100) / ESP.getHeapSize());
+                // Guardamos el valor absoluto en KB para que el logger aplique la escala
+                analyzer.addRamSample(ESP.getFreeHeap() / 1024);
                 lastRamSample = millis();
             }
 
-            // PERSISTENCIA: Solo cada 60s para proteger la vida útil de la Flash
+            // Persistencia Industrial (cada 60s)
             static unsigned long lastTrendSave = 0;
             if (millis() - lastTrendSave >= 60000) {
-                network.saveTrend(analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex());
+                logger.saveTrend(analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex());
+                logger.saveRam(analyzer.getRamHistory(), analyzer.getRamIndex());
                 lastTrendSave = millis();
             }
             
-            // Detección y registro de cambio de estado Semántico
+            // Auditoría de Cambio de Estado
             if (health.state != lastState) {
                 char stateBuf[64];
                 sprintf(stateBuf, "From %s to %s", 
                         QualityAnalyzer::getStateName(lastState), 
                         QualityAnalyzer::getStateName(health.state));
-                network.logEvent("STATE_CHANGE", stateBuf);
+                logger.logEvent("STATE_CHANGE", stateBuf);
                 lastState = health.state;
             }
 
+            // Renderizado Local (LCD)
             renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex(),
-                                   network.getUptimeString(), network.getReconnectCount(), network.getDisconnectRate());
+                                   network.getUptimeString(), network.getReconnectCount(), 0.0);
             
             digitalWrite(LED_PIN, (netData.rssi > -70) ? HIGH : LOW);
         } else {
-            renderer.drawDisconnected(network.getUptimeString(), network.getReconnectCount(), network.getDisconnectRate());
+            renderer.drawDisconnected(network.getUptimeString(), network.getReconnectCount(), 0.0);
             digitalWrite(LED_PIN, (millis() % 500 < 250) ? HIGH : LOW);
         }
     }
