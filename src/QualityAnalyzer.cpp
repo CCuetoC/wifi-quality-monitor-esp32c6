@@ -32,10 +32,12 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
     // Weighted QoS: Ponderación 60/40
     metrics.score = (rssiScore * 0.6) + (pingScore * 0.4);
 
-    // SINCERIDAD INDUSTRIAL: Si no hay latencia (InternetLink Down), la salud es 0.
+    // SINCERIDAD INDUSTRIAL: Comentado temporalmente para diagnóstico (V2.10)
+    /*
     if (pingMs == -1) {
         metrics.score = 0;
     }
+    */
     
     metrics.score = constrain(metrics.score, 0, 100);
 

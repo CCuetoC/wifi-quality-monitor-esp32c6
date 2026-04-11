@@ -63,9 +63,11 @@ void NetworkService::update() {
         _bootReasonLogged = true;
     }
 
-    // Heartbeat de 30 segundos (Caja Negra Pro)
+    // Heartbeat de 30 segundos (Con Telemetría de señal)
     if (_fsReady && hasTime && (millis() - _lastHeartbeatSent > 30000)) {
-        logEvent("HEARTBEAT", "System Alive");
+        char buf[64];
+        sprintf(buf, "System Alive | RSSI: %d | IP: %s", WiFi.RSSI(), WiFi.localIP().toString().c_str());
+        logEvent("HEARTBEAT", buf);
         _lastHeartbeatSent = millis();
     }
 
@@ -231,8 +233,15 @@ String NetworkService::getUptimeString() {
 
 void NetworkService::_performPing() {
     static bool t = false; IPAddress g = WiFi.gatewayIP();
-    if (!t) _lastPingGW = Ping.ping(g) ? Ping.averageTime() : -1;
-    else _lastPingInternet = Ping.ping("8.8.8.8") ? Ping.averageTime() : -1;
+    if (!t) {
+        bool ok = Ping.ping(g);
+        _lastPingGW = ok ? Ping.averageTime() : -1;
+        Serial.printf("[PING] Gateway %s: %s (%d ms)\n", g.toString().c_str(), ok?"OK":"FAIL", _lastPingGW);
+    } else {
+        bool ok = Ping.ping("8.8.8.8");
+        _lastPingInternet = ok ? Ping.averageTime() : -1;
+        Serial.printf("[PING] Internet 8.8.8.8: %s (%d ms)\n", ok?"OK":"FAIL", _lastPingInternet);
+    }
     t = !t;
 }
 
