@@ -22,7 +22,10 @@ public:
         HealthState state;   // Categoría lógica
         const char* label;   // "EXCELLENT", "GOOD", etc.
         bool isStable;       // ¿La señal fluctúa poco?
-        int jitter;          // Variabilidad en dBm
+        int jitter;          // Variabilidad en ms
+        int packetLoss;      // % de pérdidas (ventana actual)
+        int snr;             // SNR estimado (dB)
+        float linkEfficiency; // Tasa de éxito de transmisión (0.0 a 1.0)
     };
 
     static const int HISTORY_SIZE = 50;

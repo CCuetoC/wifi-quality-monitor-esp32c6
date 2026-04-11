@@ -62,20 +62,126 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
                                String uptime, int reconnects, float disconnectRate) {
     _canvas.fillScreen(TFT_BLACK);
     
-    uint16_t statusColor = _getColorForState(health.state);
+    // ZONA 1: Lag Spikes Trend (Arriba)
+    _drawLagChart(history, historySize, circularIndex);
     
-    _drawHeader(health.score, health.label, statusColor);
+    // ZONA 2: Overall Quality Bar (Centro)
+    _drawHealthBar(health.score, health.state);
     
-    // Etiqueta de Ventana Temporal (Fuera del gráfico para evitar colisiones)
-    _canvas.setTextSize(1);
-    _canvas.setTextColor(TFT_DARKGREY);
-    _canvas.setTextDatum(top_right);
-    _canvas.drawString("TREND: 50 SAMPLES (10s)", _canvas.width() - 20, 38);
-    
-    _drawHistoryGraph(history, historySize, circularIndex, statusColor);
-    _drawFooter(net, health, uptime, reconnects, disconnectRate);
+    // ZONA 3: Metrics Grid (Abajo)
+    _drawMetricsGrid(net, health, uptime, disconnectRate);
     
     _canvas.pushSprite(&_tft, 0, 0);
+}
+
+void DashboardRenderer::_drawLagChart(const int* history, int size, int circularIndex) {
+    int x = 20, y = 10, w = 280, h = 65;
+    
+    // Fondo y Guías Log-Step
+    _canvas.drawRect(x, y, w, h, 0x18C3); // Gris oscuro
+    
+    // Guías de escala (4, 20, 100, 500 ms)
+    int g20 = y + h - _mapLatencyToY(20, h);
+    int g100 = y + h - _mapLatencyToY(100, h);
+    int g500 = y + h - _mapLatencyToY(500, h);
+    
+    _canvas.drawFastHLine(x, g20, w, 0x0100);  // Cyan oscuro
+    _canvas.drawFastHLine(x, g100, w, 0x10A2); // Azul oscuro
+    _canvas.drawFastHLine(x, g500, w, 0x5000); // Rojo oscuro
+    
+    // Etiquetas de Escala
+    _canvas.setTextSize(1);
+    _canvas.setTextColor(0x52AA); // Gris
+    _canvas.setCursor(x - 18, g20 - 4); _canvas.print("20");
+    _canvas.setCursor(x - 18, g100 - 4); _canvas.print("100");
+    _canvas.setCursor(x - 18, g500 - 4); _canvas.print("500");
+
+    // Dibujo de Barras (Últimas 50 muestras)
+    float barW = (float)w / size;
+    for (int i = 0; i < size; i++) {
+        int idx = (circularIndex + i) % size;
+        int val = history[idx];
+        if (val == 0) continue; // No data yet
+
+        int barH = _mapLatencyToY(val, h);
+        uint16_t color = 0x07FF; // Cyan por defecto
+        if (val > 100) color = TFT_YELLOW;
+        if (val > 500 || val == -1) color = TFT_RED;
+        
+        _canvas.fillRect(x + (i * barW) + 1, y + h - barH, barW - 1, barH, color);
+    }
+    
+    _canvas.setTextColor(TFT_WHITE);
+    _canvas.setCursor(x + 5, y + 2);
+    _canvas.print("WAN LATENCY (ms) - LAG SPIKES");
+}
+
+int DashboardRenderer::_mapLatencyToY(int ms, int h) {
+    if (ms == -1) return h; // Full height for FAIL
+    if (ms <= 20) return map(ms, 0, 20, 0, 15);
+    if (ms <= 100) return 15 + map(ms, 20, 100, 0, 15);
+    if (ms <= 500) return 30 + map(ms, 100, 500, 0, 20);
+    if (ms <= 2500) return 50 + map(ms, 500, 2500, 0, 15);
+    return h;
+}
+
+void DashboardRenderer::_drawHealthBar(int score, QualityAnalyzer::HealthState state) {
+    int x = 20, y = 85, w = 240, h = 14;
+    uint16_t color = _getColorForState(state);
+    
+    // Contenedor de la barra
+    _canvas.drawRect(x, y, w, h, TFT_DARKGREY);
+    
+    // Barra segmentada (12 bloques)
+    int segments = 12;
+    int filledSegments = (score * segments) / 100;
+    int segW = (w - 4) / segments;
+    
+    for (int i = 0; i < segments; i++) {
+        uint16_t segColor = (i < filledSegments) ? color : 0x18C3;
+        _canvas.fillRect(x + 2 + (i * segW), y + 2, segW - 1, h - 4, segColor);
+    }
+    
+    // Porcentaje a la derecha
+    _canvas.setTextSize(2);
+    _canvas.setTextColor(TFT_WHITE);
+    _canvas.setCursor(x + w + 10, y - 2);
+    _canvas.printf("%d%%", score);
+    
+    _canvas.setTextSize(1);
+    _canvas.setTextColor(TFT_DARKGREY);
+    _canvas.setCursor(x, y + 18);
+    _canvas.print("OVERALL QUALITY INDEX");
+}
+
+void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, float disconnectRate) {
+    int startX = 20, startY = 115;
+    int boxW = 135, boxH = 26;
+    
+    auto drawBox = [&](int col, int row, const char* label, String val1, String val2) {
+        int bx = startX + (col * (boxW + 10));
+        int by = startY + (row * (boxH + 5));
+        _canvas.drawRect(bx, by, boxW, boxH, 0x2104); // Borde sutil
+        _canvas.setTextSize(1);
+        _canvas.setTextColor(0x7BEF); // Gris medio
+        _canvas.setCursor(bx + 5, by + 4); _canvas.print(label);
+        
+        _canvas.setTextColor(TFT_WHITE);
+        _canvas.setCursor(bx + 5, by + 14); _canvas.print(val1);
+        _canvas.setCursor(bx + boxW/2 + 5, by + 14); _canvas.print(val2);
+    };
+
+    // BOX 1: Phys (RSSI / SNR)
+    drawBox(0, 0, "PHYS (dBm/dB)", "S:" + String(net.rssi), "SNR:" + String(health.snr));
+    
+    // BOX 2: Net (Loss / Jitter)
+    drawBox(1, 0, "QUAL (Loss/Jit)", "L:" + String(health.packetLoss) + "%", "J:" + String(health.jitter) + "ms");
+    
+    // BOX 3: Resp (LAN / WAN)
+    drawBox(0, 1, "RESP (Local/Ext)", "GW:" + String(net.pingGW), "EXT:" + String(net.pingInternet));
+    
+    // BOX 4: Audit (Up / DR)
+    drawBox(1, 1, "AUDIT", uptime.substring(0,8), "DR:" + String(disconnectRate, 1));
 }
 
 uint16_t DashboardRenderer::_getColorForState(QualityAnalyzer::HealthState state) {
@@ -88,98 +194,16 @@ uint16_t DashboardRenderer::_getColorForState(QualityAnalyzer::HealthState state
     }
 }
 
-void DashboardRenderer::_drawHeader(int score, const char* label, uint16_t color) {
-    _canvas.setTextSize(3); // Reducido de 4 a 3 para balancear
-    _canvas.setTextColor(color);
-    _canvas.setTextDatum(top_left);
-    char pctBuffer[10];
-    sprintf(pctBuffer, "%d%%", score);
-    _canvas.drawString(pctBuffer, 20, 8); 
-
-    _canvas.setTextSize(2);
-    _canvas.setTextColor(TFT_WHITE);
-    _canvas.setTextDatum(top_right);
-    _canvas.drawString(label, _canvas.width() - 20, 15);
-}
-
-void DashboardRenderer::_drawHistoryGraph(const int* history, int size, int circularIndex, uint16_t color) {
-    int graphX = 20;
-    int graphY = 50; 
-    int graphW = 280;
-    int graphH = 75; // Reducido para dar aire al footer
-
-    _canvas.drawRect(graphX, graphY, graphW, graphH, 0x18C3);
-    for(int i=1; i<4; i++) {
-        _canvas.drawFastHLine(graphX, graphY + (graphH*i/4), graphW, 0x10A2);
-    }
-
-    int step = graphW / (size - 1);
-    for (int i = 0; i < size - 1; i++) {
-        // Obtenemos índices circulares para dibujo cronológico
-        int idx1 = (circularIndex + i) % size;
-        int idx2 = (circularIndex + i + 1) % size;
-        
-        int y1 = graphY + graphH - (history[idx1] * graphH / 100);
-        int y2 = graphY + graphH - (history[idx2] * graphH / 100);
-        
-        _canvas.drawLine(graphX + (i * step), y1 + 1, graphX + ((i+1) * step), y2 + 1, 0x0000); 
-        _canvas.drawLine(graphX + (i * step), y1, graphX + ((i+1) * step), y2, color);
-    }
-}
-
-void DashboardRenderer::_drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, int reconnects, float disconnectRate) {
-    _canvas.setTextSize(1);
-    _canvas.setTextColor(TFT_LIGHTGREY);
-    _canvas.setTextDatum(bottom_left);
-    
-    // Footer: Posicionamiento preciso para evitar desbordes (Y=135+)
-    _canvas.setCursor(20, 142);
-    _canvas.printf("RSSI: %d dBm | IP: %s | CH: %d", net.rssi, net.ip.c_str(), net.channel);
-    
-    _canvas.setCursor(20, 154);
-    const char* stabilityTxt = health.isStable ? "STEADY" : "JITTERY";
-    uint16_t stabColor = health.isStable ? 0x07E0 : 0xFFE0; 
-    
-    _canvas.print("GW: ");
-    _canvas.setTextColor(net.pingGW == -1 ? TFT_RED : TFT_GREEN);
-    _canvas.print(net.pingGW == -1 ? "FAIL" : String(net.pingGW).c_str());
-    _canvas.setTextColor(TFT_LIGHTGREY);
-    _canvas.print(" | LAT: ");
-    _canvas.setTextColor(net.pingInternet == -1 ? TFT_RED : TFT_GREEN);
-    _canvas.print(net.pingInternet == -1 ? "FAIL" : String(net.pingInternet).c_str());
-    _canvas.setTextColor(TFT_LIGHTGREY);
-    _canvas.print(" | ");
-    _canvas.setTextColor(stabColor);
-    _canvas.print(stabilityTxt);
-    
-    _canvas.setTextColor(TFT_DARKGREY);
-    _canvas.setCursor(20, 166);
-    _canvas.print("UPTIME: ");
-    _canvas.print(uptime);
-    _canvas.print(" | LT-DR: ");
-    _canvas.printf("%.2f/hr", disconnectRate);
-}
-
 void DashboardRenderer::drawDisconnected(String uptime, int reconnects, float disconnectRate) {
     _canvas.fillScreen(TFT_BLACK);
     _canvas.setTextColor(TFT_RED);
-    _canvas.setTextSize(5);
+    _canvas.setTextSize(4);
     _canvas.setTextDatum(top_center);
-    _canvas.drawString("OFF", _canvas.width() / 2, 15);
+    _canvas.drawString("OFFLINE", _canvas.width() / 2, 40);
     
     _canvas.setTextSize(2);
     _canvas.setTextColor(TFT_WHITE);
-    _canvas.drawString("DISCONNECTED", _canvas.width() / 2, 85);
-    
-    _canvas.setTextSize(1);
-    _canvas.setTextColor(TFT_LIGHTGREY);
-    _canvas.setCursor(20, 140);
-    _canvas.print("SYSTEM IDLE | WAITING FOR HANDSHAKE...");
-    
-    // Telemetría básica persistente durante el downtime
-    _canvas.setTextColor(TFT_DARKGREY);
-    _canvas.setCursor(20, 155);
-    _canvas.printf("UPTIME: %s | LT-DR: %.2f/hr", uptime.c_str(), disconnectRate);
+    _canvas.drawString("ATTEMPTING LINK...", _canvas.width() / 2, 90);
     
     _canvas.pushSprite(&_tft, 0, 0);
 }

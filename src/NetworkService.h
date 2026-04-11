@@ -21,6 +21,9 @@ public:
         int channel;
         int score;
         int jitter;
+        int packetLoss;
+        int snr;
+        float linkEfficiency;
     };
 
     void begin(const char* ssid, const char* pass);
@@ -31,7 +34,7 @@ public:
     // UI & State
     String getUptimeString();
     int getReconnectCount();
-    void setQuality(int score, int jitter);
+    void setQuality(int score, int jitter, int loss, int snr, float efficiency);
     int getBootPhase() { return _bootPhase; }
     bool consumeConnectionTrigger() { bool t = _connectionTrigger; _connectionTrigger = false; return t; }
 
@@ -52,6 +55,9 @@ private:
     int _gmtOffset = -5;
     int _lastScore = 0;
     int _lastJitter = 0;
+    int _lastPacketLoss = 0;
+    int _lastSNR = 0;
+    float _lastLinkEfficiency = 0;
     
     Preferences _prefs;
     WebServer* _server = nullptr;

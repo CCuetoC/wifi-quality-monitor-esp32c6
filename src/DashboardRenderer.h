@@ -29,9 +29,12 @@ private:
     LGFX_Sprite _canvas;
     
     uint16_t _getColorForState(QualityAnalyzer::HealthState state);
-    void _drawHeader(int score, const char* label, uint16_t color);
-    void _drawHistoryGraph(const int* history, int size, int circularIndex, uint16_t color);
-    void _drawFooter(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, int reconnects, float disconnectRate);
+    void _drawLagChart(const int* history, int size, int circularIndex);
+    void _drawHealthBar(int score, QualityAnalyzer::HealthState state);
+    void _drawMetricsGrid(const NetworkService::NetworkData& net, 
+                         const QualityAnalyzer::HealthMetrics& health, 
+                         String uptime, float disconnectRate);
+    int _mapLatencyToY(int ms, int maxHeight);
 };
 
 #endif

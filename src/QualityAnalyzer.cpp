@@ -3,7 +3,7 @@
 QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pingMs) {
     HealthMetrics metrics;
     
-    // Warm-up: Inicialización de buffers con el primer dato real para evitar rampa desde cero
+    // 1. Warm-up
     if (!_isInitialized) {
         for(int i=0; i<MA_SIZE; i++) {
             _rssiBuffer[i] = rssi;
@@ -12,71 +12,64 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
         _isInitialized = true;
     }
 
-    // Convergence: Promedios móviles para mitigar ruido en la capa física
+    // 2. Convergence (Ventana de 10 para promedios de cálculo)
     int avgRSSI = _addToMovingAverage(_rssiBuffer, rssi, _rssiIndex, MA_SIZE);
-    int avgPing = _addToMovingAverage(_pingBuffer, (pingMs == -1 ? 500 : pingMs), _pingIndex, MA_SIZE);
-
-    // Analytics: Cálculo de Jitter basado en el rango real del buffer (sin sesgo de ceros)
-    int minR = _rssiBuffer[0], maxR = _rssiBuffer[0];
-    for(int i=1; i<MA_SIZE; i++) {
-        if(_rssiBuffer[i] < minR) minR = _rssiBuffer[i];
-        if(_rssiBuffer[i] > maxR) maxR = _rssiBuffer[i];
-    }
-    metrics.jitter = maxR - minR;
-    metrics.isStable = (metrics.jitter <= 10); 
-
-    // Score Mapping: Estandardización de métricas
-    int rssiScore = _mapRSSI(avgRSSI);
-    int pingScore = _mapLatency(avgPing);
     
-    // Weighted QoS: Ponderación 60/40
-    metrics.score = (rssiScore * 0.6) + (pingScore * 0.4);
+    // 3. Auditoría de Packet Loss (Ventana de 50 histórica)
+    int losses = 0;
+    for(int i=0; i<HISTORY_SIZE; i++) {
+        if(_history[i] == -1) losses++;
+    }
+    float lossRate = (float)losses / HISTORY_SIZE;
+    metrics.packetLoss = (int)(lossRate * 100);
+    metrics.linkEfficiency = 1.0f - lossRate;
 
-    // SINCERIDAD INDUSTRIAL V4.4: El score es 100% orgánico basado en promedios
+    // 4. Cálculo de Jitter (EMA de variaciones absolutas)
+    static int lastValidPing = -1;
+    static float internalJitter = 0;
+    if (pingMs != -1 && lastValidPing != -1) {
+        float diff = abs(pingMs - lastValidPing);
+        internalJitter = (internalJitter * 0.8f) + (diff * 0.2f);
+    }
+    if (pingMs != -1) lastValidPing = pingMs;
+    metrics.jitter = (int)internalJitter;
+    metrics.isStable = (metrics.jitter <= 15); // Umbral industrial de estabilidad
+
+    // 5. Capa Física (SNR Estimado)
+    metrics.snr = rssi + 96; // Ref floor: -96dBm
+
+    // 6. Score Mapping (60% SNR/RSSI + 40% Latency)
+    int rssiScore = _mapRSSI(avgRSSI);
+    int pingScore = _mapLatency(pingMs);
+    int baseScore = (rssiScore * 0.6) + (pingScore * 0.4);
+    
+    // 7. SINCERIDAD INDUSTRIAL V5.0: Penalización por eficiencia
+    metrics.score = (int)((float)baseScore * metrics.linkEfficiency);
     metrics.score = constrain(metrics.score, 0, 100);
 
-    // State Machine: Histéresis funcional de 5 puntos
+    // 8. State Machine (Histéresis funcional)
     int margin = 5;
     HealthState nextState = _lastState;
-
-    if (metrics.score >= 91) {
-        nextState = EXCELLENT;
-    } 
+    if (metrics.score >= 91) nextState = EXCELLENT;
     else if (metrics.score >= 71) {
-        // Histéresis EXCELLENT -> GOOD: Solo baja si score < 86 (91 - 5)
-        if (_lastState == EXCELLENT && metrics.score >= (91 - margin)) {
-            nextState = EXCELLENT;
-        } else {
-            nextState = GOOD;
-        }
+        if (_lastState == EXCELLENT && metrics.score >= (91 - margin)) nextState = EXCELLENT;
+        else nextState = GOOD;
     } 
     else if (metrics.score >= 41) {
-        // Histéresis GOOD -> DEGRADED: Solo baja si score < 66 (71 - 5)
-        if (_lastState == GOOD && metrics.score >= (71 - margin)) {
-            nextState = GOOD;
-        } else {
-            nextState = DEGRADED;
-        }
+        if (_lastState == GOOD && metrics.score >= (71 - margin)) nextState = GOOD;
+        else nextState = DEGRADED;
     } 
     else {
-        // Histéresis DEGRADED -> CRITICAL: Solo baja si score < 36 (41 - 5)
-        if (_lastState == DEGRADED && metrics.score >= (41 - margin)) {
-            nextState = DEGRADED;
-        } else {
-            nextState = CRITICAL;
-        }
+        if (_lastState == DEGRADED && metrics.score >= (41 - margin)) nextState = DEGRADED;
+        else nextState = CRITICAL;
     }
 
     metrics.state = nextState;
     _lastState = nextState;
+    metrics.label = getStateName(nextState);
 
-    // Label Mapping
-    switch(metrics.state) {
-        case EXCELLENT: metrics.label = "EXCELLENT"; break;
-        case GOOD:      metrics.label = "GOOD"; break;
-        case DEGRADED:  metrics.label = "DEGRADED"; break;
-        case CRITICAL:  metrics.label = "CRITICAL"; break;
-    }
+    // 9. Actualizar historial con LATENCIA (v5.0) en lugar de score
+    addSample(pingMs);
 
     return metrics;
 }

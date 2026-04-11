@@ -77,11 +77,12 @@ void loop() {
         if (netData.connected) {
             // QoS Analysis
             QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
-            network.setQuality(health.score, health.jitter);
+            // V5.0: Propagar todas las métricas industriales
+            network.setQuality(health.score, health.jitter, health.packetLoss, health.snr, health.linkEfficiency);
 
-            // Muestreo de Calidad (cada 2s)
+            // Muestreo de Latencia (cada 2s: ventana de ~1.6 min en 50 muestras)
             if (millis() - lastHistorySample >= 2000) {
-                analyzer.addSample(health.score);
+                analyzer.addSample(netData.pingInternet); // V5.0: Almacenar latencia cruda (ms)
                 lastHistorySample = millis();
             }
 

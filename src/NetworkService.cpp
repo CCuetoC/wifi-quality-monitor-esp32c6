@@ -167,13 +167,22 @@ NetworkService::NetworkData NetworkService::getData() {
     NetworkData d; d.connected = (WiFi.status() == WL_CONNECTED); 
     if (d.connected) { 
         d.rssi = WiFi.RSSI(); d.ip = WiFi.localIP().toString(); d.channel = WiFi.channel(); 
-        d.pingGW = _lastPingGW; d.pingInternet = _lastPingInternet; d.score = _lastScore; d.jitter = _lastJitter; 
+        d.pingGW = _lastPingGW; d.pingInternet = _lastPingInternet; d.score = _lastScore; 
+        d.jitter = _lastJitter; d.packetLoss = _lastPacketLoss; 
+        d.snr = _lastSNR; d.linkEfficiency = _lastLinkEfficiency;
     } else { 
-        d.rssi = -100; d.channel = 0; d.pingGW = -1; d.pingInternet = -1; d.score = 0; d.jitter = 0; 
+        d.rssi = -100; d.channel = 0; d.pingGW = -1; d.pingInternet = -1; d.score = 0; 
+        d.jitter = 0; d.packetLoss = 0; d.snr = 0; d.linkEfficiency = 0;
     } 
     return d; 
 }
 
 int NetworkService::getReconnectCount() { return _reconnectCount; }
 bool NetworkService::isConnected() { return WiFi.status() == WL_CONNECTED; }
-void NetworkService::setQuality(int score, int jitter) { _lastScore = score; _lastJitter = jitter; }
+void NetworkService::setQuality(int score, int jitter, int loss, int snr, float efficiency) { 
+    _lastScore = score; 
+    _lastJitter = jitter; 
+    _lastPacketLoss = loss;
+    _lastSNR = snr;
+    _lastLinkEfficiency = efficiency;
+}
