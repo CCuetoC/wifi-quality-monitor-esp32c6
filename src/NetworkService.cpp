@@ -143,9 +143,23 @@ void NetworkService::_handleConfig() {
     _server->send(200, "text/html", h);
 }
 
-String NetworkService::getUptimeString() { unsigned long s = (_historicalUptime + (millis() - _startTime)) / 1000; char b[16]; sprintf(b, "%02luh %02lum %02lus", s/3600, (s%3600)/60, s%60); return String(b); }
-NetworkService::NetworkData NetworkService::getData() { NetworkData d; d.connected = (WiFi.status() == WL_CONNECTED); if (d.connected) { d.rssi = WiFi.RSSI(); d.ip = WiFi.localIP().toString(); d.channel = WiFi.channel(); d.pingGW = _lastPingGW; d.pingInternet = _lastPingInternet; d.score = _lastScore; d.jitter = _lastJitter; } else { d.rssi = -100; d.channel = 0; d.pingGW = -1; d.pingInternet = -1; d.score = 0; d.jitter = 0; } return d; }
+String NetworkService::getUptimeString() { 
+    unsigned long s = (_historicalUptime + (millis() - _startTime)) / 1000; 
+    char b[16]; sprintf(b, "%02luh %02lum %02lus", s/3600, (s%3600)/60, s%60); 
+    return String(b); 
+}
+
+NetworkService::NetworkData NetworkService::getData() { 
+    NetworkData d; d.connected = (WiFi.status() == WL_CONNECTED); 
+    if (d.connected) { 
+        d.rssi = WiFi.RSSI(); d.ip = WiFi.localIP().toString(); d.channel = WiFi.channel(); 
+        d.pingGW = _lastPingGW; d.pingInternet = _lastPingInternet; d.score = _lastScore; d.jitter = _lastJitter; 
+    } else { 
+        d.rssi = -100; d.channel = 0; d.pingGW = -1; d.pingInternet = -1; d.score = 0; d.jitter = 0; 
+    } 
+    return d; 
+}
+
 int NetworkService::getReconnectCount() { return _reconnectCount; }
 bool NetworkService::isConnected() { return WiFi.status() == WL_CONNECTED; }
 void NetworkService::setQuality(int score, int jitter) { _lastScore = score; _lastJitter = jitter; }
-void NetworkService::begin(const char* ssid, const char* pass) { _prefs.begin("net_stats", true); String s = _prefs.getString("w_ssid", ssid), p = _prefs.getString("w_pass", pass); _prefs.end(); WiFi.mode(WIFI_STA); WiFi.begin(s.c_str(), p.c_str()); _startTime = millis(); }
