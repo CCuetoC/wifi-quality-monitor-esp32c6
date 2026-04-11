@@ -96,28 +96,29 @@ void DashboardRenderer::_drawLagChart(const int* history, int size, int circular
     _canvas.setCursor(x - 18, g100 - 4); _canvas.print("100");
     _canvas.setCursor(x - 18, g500 - 4); _canvas.print("500");
 
-    // Dibujo de Barras (Últimas 50 muestras)
-    float barW = (float)w / size;
+    // Dibujo de Barras (Alta Densidad: 140 muestras)
+    float barW = (float)w / size; // 280 / 140 = 2px
     for (int i = 0; i < size; i++) {
         int idx = (circularIndex + i) % size;
         int val = history[idx];
-        if (val == 0) continue; // No data yet
+        if (val == 0) continue; 
 
         int barH = _mapLatencyToY(val, h);
-        uint16_t color = 0x07FF; // Cyan por defecto
+        uint16_t color = 0x07FF; // Cyan base
         if (val > 100) color = TFT_YELLOW;
         if (val > 500 || val == -1) color = TFT_RED;
         
-        _canvas.fillRect(x + (i * barW) + 1, y + h - barH, barW - 1, barH, color);
+        // Barras de 2px sin espacio intermedio para mayor densidad
+        _canvas.fillRect(x + (i * barW), y + h - barH, barW, barH, color);
     }
     
     _canvas.setTextColor(TFT_WHITE);
     _canvas.setCursor(x + 5, y + 2);
-    _canvas.print("WAN LATENCY (ms) - LAG SPIKES");
+    _canvas.print("WAN LATENCY (ms) - Hi-Density (4.6m)");
 }
 
 int DashboardRenderer::_mapLatencyToY(int ms, int h) {
-    if (ms == -1) return h; // Full height for FAIL
+    if (ms == -1) return h; 
     if (ms <= 20) return map(ms, 0, 20, 0, 15);
     if (ms <= 100) return 15 + map(ms, 20, 100, 0, 15);
     if (ms <= 500) return 30 + map(ms, 100, 500, 0, 20);
@@ -127,19 +128,24 @@ int DashboardRenderer::_mapLatencyToY(int ms, int h) {
 
 void DashboardRenderer::_drawHealthBar(int score, QualityAnalyzer::HealthState state) {
     int x = 20, y = 85, w = 240, h = 14;
-    uint16_t color = _getColorForState(state);
     
-    // Contenedor de la barra
+    // Contenedor
     _canvas.drawRect(x, y, w, h, TFT_DARKGREY);
     
-    // Barra segmentada (12 bloques)
+    // Vúmetro Segmentado (12 bloques con colores fijos por zona)
     int segments = 12;
     int filledSegments = (score * segments) / 100;
     int segW = (w - 4) / segments;
     
     for (int i = 0; i < segments; i++) {
-        uint16_t segColor = (i < filledSegments) ? color : 0x18C3;
-        _canvas.fillRect(x + 2 + (i * segW), y + 2, segW - 1, h - 4, segColor);
+        uint16_t segColor;
+        if (i < 3) segColor = TFT_RED;             // Zona Crítica (0-25%)
+        else if (i < 7) segColor = TFT_ORANGE;      // Zona Alerta (25-58%)
+        else segColor = 0x07E0;                    // Zona Óptima (Green)
+        
+        bool isActive = (i < filledSegments);
+        uint16_t finalColor = isActive ? segColor : 0x18C3; // Apagado si no llega el score
+        _canvas.fillRect(x + 2 + (i * segW), y + 2, segW - 1, h - 4, finalColor);
     }
     
     // Porcentaje a la derecha

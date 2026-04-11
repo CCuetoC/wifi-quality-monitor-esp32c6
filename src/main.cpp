@@ -62,9 +62,9 @@ void loop() {
         static bool historyLoaded = false;
         if (!historyLoaded) {
             if (network.getBootPhase() >= 1) {
-                int hist[50], idx;
-                if (logger.loadTrend(hist, 50, &idx)) {
-                    analyzer.loadHistory(hist, 50, idx);
+                int hist[140], idx;
+                if (logger.loadTrend(hist, 140, &idx)) {
+                    analyzer.loadHistory(hist, 140, idx);
                     logger.logEvent("SYS_STATUS", "Visual History Restored");
                 }
                 historyLoaded = true;
