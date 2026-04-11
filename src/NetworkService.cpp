@@ -81,9 +81,9 @@ void NetworkService::update(FileLogger& logger) {
 }
 
 void NetworkService::_performPing() {
-    // V4.1: Retorno al Origen - 1 paquete a Google (8.8.8.8) únicamente.
-    _lastPingGW = Ping.ping(WiFi.gatewayIP(), 1) ? Ping.averageTime() : -1;
-    _lastPingInternet = Ping.ping("8.8.8.8", 1) ? Ping.averageTime() : -1;
+    // V4.2 Trial: 2 paquetes para redundancia mínima ante fluctuaciones
+    _lastPingGW = Ping.ping(WiFi.gatewayIP(), 2) ? Ping.averageTime() : -1;
+    _lastPingInternet = Ping.ping("8.8.8.8", 2) ? Ping.averageTime() : -1;
 }
 
 void NetworkService::_setupWebServer(FileLogger& logger) {
