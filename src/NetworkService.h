@@ -43,6 +43,7 @@ private:
     int _lastPingInternet = -1;
     
     unsigned long _lastReconnectAttempt = 0;
+    unsigned long _lastConnectedTime = 0;
     unsigned long _historicalUptime = 0;
     
     bool _isConfigMode = false;
