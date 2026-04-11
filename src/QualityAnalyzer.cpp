@@ -32,9 +32,7 @@ QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pi
     // Weighted QoS: Ponderación 60/40
     metrics.score = (rssiScore * 0.6) + (pingScore * 0.4);
 
-    // SINCERIDAD INDUSTRIAL: El score ahora depende del histórico (v4.2 Trial)
-    // Se elimina el forzado a 0 instantáneo para diagnóstico
-    
+    // SINCERIDAD INDUSTRIAL V4.4: El score es 100% orgánico basado en promedios
     metrics.score = constrain(metrics.score, 0, 100);
 
     // State Machine: Histéresis funcional de 5 puntos

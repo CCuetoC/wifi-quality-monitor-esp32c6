@@ -83,18 +83,29 @@ void NetworkService::update(FileLogger& logger) {
 void NetworkService::_performPing() {
     IPAddress gw = WiFi.gatewayIP();
     IPAddress google(8, 8, 8, 8);
+    IPAddress cloud(1, 1, 1, 1);
     
-    // V4.3 Diagnostic: Telemetría Verbosa y Nativización
+    // V4.4 Bypass: Testigo Dual para romper bloqueos de router
     bool gwOk = Ping.ping(gw, 2);
     _lastPingGW = gwOk ? Ping.averageTime() : -1;
     
-    bool netOk = Ping.ping(google, 2);
-    _lastPingInternet = netOk ? Ping.averageTime() : -1;
+    bool gOk = Ping.ping(google, 1);
+    int gTime = gOk ? Ping.averageTime() : -1;
     
-    Serial.printf("[DIAG] RSSI: %d | GW: %s (%d ms) | Internet: %s (%d ms)\n", 
-                  WiFi.RSSI(),
+    bool cOk = Ping.ping(cloud, 1);
+    int cTime = cOk ? Ping.averageTime() : -1;
+    
+    if (gOk || cOk) {
+        if (gOk && cOk) _lastPingInternet = (gTime + cTime) / 2;
+        else _lastPingInternet = gOk ? gTime : cTime;
+    } else {
+        _lastPingInternet = -1;
+    }
+    
+    Serial.printf("[DIAG] GW: %s (%dms) | GOOGLE: %s (%dms) | CLOUD: %s (%dms)\n", 
                   gwOk ? "OK" : "FAIL", _lastPingGW, 
-                  netOk ? "OK" : "FAIL", _lastPingInternet);
+                  gOk ? "OK" : "FAIL", gTime,
+                  cOk ? "OK" : "FAIL", cTime);
 }
 
 void NetworkService::_setupWebServer(FileLogger& logger) {
