@@ -50,7 +50,8 @@ void FileLogger::checkStartupReason() {
 }
 
 void FileLogger::estimateLastPowerOff() {
-    if (!_fsReady) return;
+    if (!_fsReady || _powerOffLogged) return;
+    _powerOffLogged = true;
     File f = LittleFS.open("/log.txt", FILE_READ);
     if (!f) return;
     

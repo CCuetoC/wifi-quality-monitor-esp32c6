@@ -31,6 +31,7 @@ private:
     bool _fsReady = false;
     unsigned long _lastHeartbeatSent = 0;
     bool _bootReasonLogged = false;
+    bool _powerOffLogged = false;
     
     void _rotateLogs();
 };
