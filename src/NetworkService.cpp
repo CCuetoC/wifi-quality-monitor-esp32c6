@@ -49,6 +49,9 @@ void NetworkService::update(FileLogger& logger) {
         logger.begin(); _prefs.begin("net_stats", false);
         _reconnectCount = _prefs.getInt("recon", 0); _gmtOffset = _prefs.getInt("gmt", -5);
         _historicalUptime = _prefs.getULong("t_uptime", 0); _prefs.end();
+        Serial.printf("[NET] IP: %s | GW: %s | MASK: %s | DNS: %s\n", 
+                      WiFi.localIP().toString().c_str(), WiFi.gatewayIP().toString().c_str(), 
+                      WiFi.subnetMask().toString().c_str(), WiFi.dnsIP().toString().c_str());
         _bootPhase = 1; 
     }
     if (_bootPhase == 1 && u > 12000) { if (!_server) _server = new WebServer(80); if (!_dnsServer) _dnsServer = new DNSServer(); _setupWebServer(logger); _bootPhase = 2; }
@@ -82,30 +85,25 @@ void NetworkService::update(FileLogger& logger) {
 
 void NetworkService::_performPing() {
     IPAddress gw = WiFi.gatewayIP();
-    IPAddress google(8, 8, 8, 8);
-    IPAddress cloud(1, 1, 1, 1);
+    IPAddress google(8, 8, 8, 8), cloud(1, 1, 1, 1), quad9(9, 9, 9, 9);
     
-    // V4.4 Bypass: Testigo Dual para romper bloqueos de router
+    // V4.5 Auditoría Total: Triple Testigo para veracidad absoluta
     bool gwOk = Ping.ping(gw, 2);
     _lastPingGW = gwOk ? Ping.averageTime() : -1;
     
-    bool gOk = Ping.ping(google, 1);
-    int gTime = gOk ? Ping.averageTime() : -1;
+    bool gOk = Ping.ping(google, 1); int gTime = gOk ? Ping.averageTime() : -1;
+    bool cOk = Ping.ping(cloud, 1);  int cTime = cOk ? Ping.averageTime() : -1;
+    bool qOk = Ping.ping(quad9, 1);  int qTime = qOk ? Ping.averageTime() : -1;
     
-    bool cOk = Ping.ping(cloud, 1);
-    int cTime = cOk ? Ping.averageTime() : -1;
+    // Lógica de Resiliencia: El mejor tiempo manda
+    int best = -1;
+    if (gOk) best = (best == -1) ? gTime : min(best, gTime);
+    if (cOk) best = (best == -1) ? cTime : min(best, cTime);
+    if (qOk) best = (best == -1) ? qTime : min(best, qTime);
+    _lastPingInternet = best;
     
-    if (gOk || cOk) {
-        if (gOk && cOk) _lastPingInternet = (gTime + cTime) / 2;
-        else _lastPingInternet = gOk ? gTime : cTime;
-    } else {
-        _lastPingInternet = -1;
-    }
-    
-    Serial.printf("[DIAG] GW: %s (%dms) | GOOGLE: %s (%dms) | CLOUD: %s (%dms)\n", 
-                  gwOk ? "OK" : "FAIL", _lastPingGW, 
-                  gOk ? "OK" : "FAIL", gTime,
-                  cOk ? "OK" : "FAIL", cTime);
+    Serial.printf("[DIAG] GW:%s (%dms) | GOOGLE:%s (%dms) | CLOUD:%s (%dms) | QUAD9:%s (%dms)\n", 
+                  gwOk?"OK":"FAIL", _lastPingGW, gOk?"OK":"FAIL", gTime, cOk?"OK":"FAIL", cTime, qOk?"OK":"FAIL", qTime);
 }
 
 void NetworkService::_setupWebServer(FileLogger& logger) {
