@@ -1,6 +1,7 @@
 #include "NetworkService.h"
 #include <time.h>
 #include "esp_system.h"
+#include "esp_wifi.h"
 
 NetworkService::NetworkService() {}
 
@@ -78,6 +79,23 @@ void NetworkService::update(FileLogger& logger) {
         _lastConnectedTime = millis();
         if (_isConfigMode) { WiFi.softAPdisconnect(true); if (_dnsServer) _dnsServer->stop(); _isConfigMode = false; }
         if (_bootPhase >= 1 && (millis() - _lastPingTime > 3000)) { _lastPingTime = millis(); _performPing(); }
+        
+        // V5.1: Captura de Auditoría (BSSID y Protocolo) cada 10s
+        if (millis() - _lastExtraUpdate >= 10000) {
+            _lastExtraUpdate = millis();
+            wifi_ap_record_t ap;
+            if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
+                char b[20];
+                sprintf(b, "%02X:%02X:%02X:%02X:%02X:%02X", 
+                        ap.bssid[0], ap.bssid[1], ap.bssid[2], 
+                        ap.bssid[3], ap.bssid[4], ap.bssid[5]);
+                _lastBSSID = String(b);
+                if (ap.phy_11ax) _lastPhyMode = "AX";
+                else if (ap.phy_11n) _lastPhyMode = "N";
+                else if (ap.phy_11g) _lastPhyMode = "G";
+                else _lastPhyMode = "LEG";
+            }
+        }
     } else {
         if (u > 30000 && !c && !_isConfigMode && _bootPhase >= 2) { _isConfigMode = true; WiFi.softAP("WiFi-Monitor-C6"); if (_dnsServer) _dnsServer->start(53, "*", WiFi.softAPIP()); }
         if (millis() - _lastReconnectAttempt > 10000) { _lastReconnectAttempt = millis(); WiFi.reconnect(); _reconnectCount++; }
@@ -170,9 +188,11 @@ NetworkService::NetworkData NetworkService::getData() {
         d.pingGW = _lastPingGW; d.pingInternet = _lastPingInternet; d.score = _lastScore; 
         d.jitter = _lastJitter; d.packetLoss = _lastPacketLoss; 
         d.snr = _lastSNR; d.linkEfficiency = _lastLinkEfficiency;
+        d.bssid = _lastBSSID; d.phyMode = _lastPhyMode;
     } else { 
         d.rssi = -100; d.channel = 0; d.pingGW = -1; d.pingInternet = -1; d.score = 0; 
         d.jitter = 0; d.packetLoss = 0; d.snr = 0; d.linkEfficiency = 0;
+        d.bssid = "00:00:00:00:00:00"; d.phyMode = "OFF";
     } 
     return d; 
 }

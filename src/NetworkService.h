@@ -24,6 +24,8 @@ public:
         int packetLoss;
         int snr;
         float linkEfficiency;
+        String bssid;
+        String phyMode;
     };
 
     void begin(const char* ssid, const char* pass);
@@ -58,6 +60,9 @@ private:
     int _lastPacketLoss = 0;
     int _lastSNR = 0;
     float _lastLinkEfficiency = 0;
+    String _lastBSSID = "00:00:00:00:00:00";
+    String _lastPhyMode = "N/A";
+    unsigned long _lastExtraUpdate = 0;
     
     Preferences _prefs;
     WebServer* _server = nullptr;

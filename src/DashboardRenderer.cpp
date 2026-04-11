@@ -158,7 +158,7 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
     int startX = 20, startY = 115;
     int boxW = 135, boxH = 26;
     
-    auto drawBox = [&](int col, int row, const char* label, String val1, String val2) {
+    auto drawBox = [&](int col, int row, const char* label, String val1, uint16_t col1, String val2, uint16_t col2) {
         int bx = startX + (col * (boxW + 10));
         int by = startY + (row * (boxH + 5));
         _canvas.drawRect(bx, by, boxW, boxH, 0x2104); // Borde sutil
@@ -166,22 +166,42 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
         _canvas.setTextColor(0x7BEF); // Gris medio
         _canvas.setCursor(bx + 5, by + 4); _canvas.print(label);
         
-        _canvas.setTextColor(TFT_WHITE);
-        _canvas.setCursor(bx + 5, by + 14); _canvas.print(val1);
-        _canvas.setCursor(bx + boxW/2 + 5, by + 14); _canvas.print(val2);
+        _canvas.setCursor(bx + 5, by + 14); 
+        _canvas.setTextColor(col1); _canvas.print(val1);
+        _canvas.setCursor(bx + boxW/2 + 5, by + 14); 
+        _canvas.setTextColor(col2); _canvas.print(val2);
     };
 
-    // BOX 1: Phys (RSSI / SNR)
-    drawBox(0, 0, "PHYS (dBm/dB)", "S:" + String(net.rssi), "SNR:" + String(health.snr));
-    
+    // Thresholds: RSSI<-67, SNR<25, Lat>50, Jitter>10, Loss>1%
+    uint16_t cS = (net.rssi < -67) ? TFT_ORANGE : TFT_WHITE;
+    uint16_t cSNR = (health.snr < 25) ? TFT_RED : TFT_WHITE;
+    uint16_t cL = (health.packetLoss > 1) ? TFT_RED : TFT_WHITE;
+    uint16_t cJ = (health.jitter > 10) ? TFT_ORANGE : TFT_WHITE;
+    uint16_t cGW = (net.pingGW > 50) ? TFT_RED : TFT_GREEN;
+    if (net.pingGW == -1) cGW = TFT_RED;
+    uint16_t cEXT = (net.pingInternet > 50) ? TFT_RED : TFT_GREEN;
+    if (net.pingInternet == -1) cEXT = TFT_RED;
+
+    // BOX 1: Phys (S / CH + Mode / SNR) - Reintroduciendo CH y AX
+    String chMode = "CH:" + String(net.channel) + "(" + net.phyMode + ")";
+    drawBox(0, 0, "PHYS (Signal/Link)", "S:" + String(net.rssi), cS, chMode, TFT_CYAN);
+    _canvas.setTextColor(cSNR); _canvas.setCursor(startX + 105, startY + 4); _canvas.printf("%d", health.snr);
+
     // BOX 2: Net (Loss / Jitter)
-    drawBox(1, 0, "QUAL (Loss/Jit)", "L:" + String(health.packetLoss) + "%", "J:" + String(health.jitter) + "ms");
+    drawBox(1, 0, "QUAL (Loss/Jit)", "L:" + String(health.packetLoss) + "%", cL, "J:" + String(health.jitter) + "ms", cJ);
     
     // BOX 3: Resp (LAN / WAN)
-    drawBox(0, 1, "RESP (Local/Ext)", "GW:" + String(net.pingGW), "EXT:" + String(net.pingInternet));
+    drawBox(0, 1, "RESP (Local/Ext)", "GW:" + String(net.pingGW), cGW, "EXT:" + String(net.pingInternet), cEXT);
     
-    // BOX 4: Audit (Up / DR)
-    drawBox(1, 1, "AUDIT", uptime.substring(0,8), "DR:" + String(disconnectRate, 1));
+    // BOX 4: Audit (Toggle Uptime/BSSID)
+    bool toggle = (millis() % 10000 < 5000);
+    if (toggle) {
+        drawBox(1, 1, "AUDIT (Uptime)", uptime.substring(0,8), TFT_WHITE, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
+    } else {
+        // Reducir BSSID para que entre (últimos 4 octetos o scroll)
+        String shortBssid = net.bssid.substring(9); // Solo XX:XX:XX:XX
+        drawBox(1, 1, "AUDIT (BSSID)", shortBssid, TFT_YELLOW, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
+    }
 }
 
 uint16_t DashboardRenderer::_getColorForState(QualityAnalyzer::HealthState state) {
