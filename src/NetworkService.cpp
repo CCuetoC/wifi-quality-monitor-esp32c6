@@ -39,7 +39,8 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     _prefs.begin("net_stats", true);
     String s = _prefs.getString("w_ssid", ssid), p = _prefs.getString("w_pass", pass);
     _prefs.end();
-    WiFi.mode(WIFI_STA); WiFi.begin(s.c_str(), p.c_str());
+    WiFi.mode(WIFI_STA); WiFi.setSleep(false); // V4.6: Máxima alerta (No Sleep)
+    WiFi.begin(s.c_str(), p.c_str());
     _startTime = millis();
 }
 
@@ -86,24 +87,24 @@ void NetworkService::update(FileLogger& logger) {
 void NetworkService::_performPing() {
     IPAddress gw = WiFi.gatewayIP();
     IPAddress google(8, 8, 8, 8), cloud(1, 1, 1, 1), quad9(9, 9, 9, 9);
+    static int judge = 0; // V4.6: Rotación Round Robin
     
-    // V4.5 Auditoría Total: Triple Testigo para veracidad absoluta
+    // Paso 1: Juez Local (Gateway)
     bool gwOk = Ping.ping(gw, 2);
     _lastPingGW = gwOk ? Ping.averageTime() : -1;
     
-    bool gOk = Ping.ping(google, 1); int gTime = gOk ? Ping.averageTime() : -1;
-    bool cOk = Ping.ping(cloud, 1);  int cTime = cOk ? Ping.averageTime() : -1;
-    bool qOk = Ping.ping(quad9, 1);  int qTime = qOk ? Ping.averageTime() : -1;
+    delay(100); yield(); // Limpieza de aire
     
-    // Lógica de Resiliencia: El mejor tiempo manda
-    int best = -1;
-    if (gOk) best = (best == -1) ? gTime : min(best, gTime);
-    if (cOk) best = (best == -1) ? cTime : min(best, cTime);
-    if (qOk) best = (best == -1) ? qTime : min(best, qTime);
-    _lastPingInternet = best;
+    // Paso 2: Juez Externo Rotativo (Evita ráfagas)
+    bool extOk = false; int extTime = -1; String n = "";
+    if (judge == 0) { extOk = Ping.ping(google, 2); extTime = extOk ? Ping.averageTime() : -1; n = "GOOGLE"; }
+    else if (judge == 1) { extOk = Ping.ping(cloud, 2); extTime = extOk ? Ping.averageTime() : -1; n = "CLOUD"; }
+    else { extOk = Ping.ping(quad9, 2); extTime = extOk ? Ping.averageTime() : -1; n = "QUAD9"; }
     
-    Serial.printf("[DIAG] GW:%s (%dms) | GOOGLE:%s (%dms) | CLOUD:%s (%dms) | QUAD9:%s (%dms)\n", 
-                  gwOk?"OK":"FAIL", _lastPingGW, gOk?"OK":"FAIL", gTime, cOk?"OK":"FAIL", cTime, qOk?"OK":"FAIL", qTime);
+    _lastPingInternet = extTime;
+    Serial.printf("[DIAG] GW:%s (%dms) | %s:%s (%dms)\n", 
+                  gwOk?"OK":"FAIL", _lastPingGW, n.c_str(), extOk?"OK":"FAIL", extTime);
+    judge = (judge + 1) % 3;
 }
 
 void NetworkService::_setupWebServer(FileLogger& logger) {
