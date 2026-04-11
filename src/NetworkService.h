@@ -18,6 +18,7 @@ public:
         int pingGW;
         int pingInternet;
         String ip;
+        int channel;
         int score;
         int jitter;
     };
