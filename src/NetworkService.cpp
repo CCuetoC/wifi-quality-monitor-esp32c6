@@ -27,9 +27,11 @@ String getCommonCSS() {
 String getNav() { return "<div class='nav'><a href='/'>DASHBOARD</a><a href='/logs'>LOGGER</a><a href='/config'>SETTINGS</a></div>"; }
 
 void NetworkService::begin(const char* ssid, const char* pass) {
+    Serial.println("[NET] Service starting...");
     _prefs.begin("net_stats", true);
     String s = _prefs.getString("w_ssid", ssid), p = _prefs.getString("w_pass", pass);
     _prefs.end();
+    Serial.printf("[NET] Connecting to: %s\n", s.c_str());
     WiFi.mode(WIFI_STA); WiFi.begin(s.c_str(), p.c_str());
     _startTime = millis();
 }
@@ -96,7 +98,9 @@ void NetworkService::estimateLastPowerOff() {
     if (!_fsReady) return;
     File f = LittleFS.open("/log.txt", FILE_READ);
     if (!f) { Serial.println("[FS] Log missing for estimation"); return; }
-    if (f.size() > 6000) f.seek(f.size() - 6000);
+    // V2.9: Lectura optimizada (2KB) para evitar bloqueos
+    size_t sz = f.size();
+    if (sz > 2048) f.seek(sz - 2048);
     String data = f.readString(); f.close();
     
     int lastH = data.lastIndexOf("HEARTBEAT");
