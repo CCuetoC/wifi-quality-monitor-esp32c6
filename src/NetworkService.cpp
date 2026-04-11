@@ -46,8 +46,12 @@ void NetworkService::update() {
     }
     if (_bootPhase == 1 && u > 12000) { if (!_server) _server = new WebServer(80); if (!_dnsServer) _dnsServer = new DNSServer(); _setupWebServer(); _bootPhase = 2; }
     
-    // CALIBRACIÓN V2.7: Inyectar offset directo para eliminar error de 5 horas
-    if (_bootPhase == 2 && u > 18000) { configTime(_gmtOffset * 3600, 0, "pool.ntp.org", "time.google.com"); _bootPhase = 3; }
+    // CALIBRACIÓN V2.11: Huso horario de Lima forzado tras sincronización NTP
+    if (_bootPhase == 2 && u > 18000) { 
+        configTime(0, 0, "pool.ntp.org", "time.google.com"); 
+        setenv("TZ", "<-05>5", 1); tzset(); 
+        _bootPhase = 3; 
+    }
 
     if (_server) _server->handleClient();
     if (_dnsServer && _isConfigMode) _dnsServer->processNextRequest();
@@ -232,17 +236,23 @@ String NetworkService::getUptimeString() {
 }
 
 void NetworkService::_performPing() {
-    static bool t = false; IPAddress g = WiFi.gatewayIP();
-    if (!t) {
-        bool ok = Ping.ping(g);
-        _lastPingGW = ok ? Ping.averageTime() : -1;
-        Serial.printf("[PING] Gateway %s: %s (%d ms)\n", g.toString().c_str(), ok?"OK":"FAIL", _lastPingGW);
+    static int t = 0; IPAddress g = WiFi.gatewayIP();
+    if (t == 0) {
+        _lastPingGW = Ping.ping(g) ? Ping.averageTime() : -1;
     } else {
-        bool ok = Ping.ping("8.8.8.8");
-        _lastPingInternet = ok ? Ping.averageTime() : -1;
-        Serial.printf("[PING] Internet 8.8.8.8: %s (%d ms)\n", ok?"OK":"FAIL", _lastPingInternet);
+        bool gOk = Ping.ping("8.8.8.8");
+        int gTime = gOk ? Ping.averageTime() : -1;
+        bool cOk = Ping.ping("1.1.1.1");
+        int cTime = cOk ? Ping.averageTime() : -1;
+
+        if (gOk || cOk) {
+            if (gOk && cOk) _lastPingInternet = (gTime + cTime) / 2;
+            else _lastPingInternet = gOk ? gTime : cTime;
+        } else {
+            _lastPingInternet = -1;
+        }
     }
-    t = !t;
+    t = (t + 1) % 2;
 }
 
 NetworkService::NetworkData NetworkService::getData() {
