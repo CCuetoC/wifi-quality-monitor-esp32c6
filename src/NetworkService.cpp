@@ -81,9 +81,20 @@ void NetworkService::update(FileLogger& logger) {
 }
 
 void NetworkService::_performPing() {
-    // V4.2 Trial: 2 paquetes para redundancia mínima ante fluctuaciones
-    _lastPingGW = Ping.ping(WiFi.gatewayIP(), 2) ? Ping.averageTime() : -1;
-    _lastPingInternet = Ping.ping("8.8.8.8", 2) ? Ping.averageTime() : -1;
+    IPAddress gw = WiFi.gatewayIP();
+    IPAddress google(8, 8, 8, 8);
+    
+    // V4.3 Diagnostic: Telemetría Verbosa y Nativización
+    bool gwOk = Ping.ping(gw, 2);
+    _lastPingGW = gwOk ? Ping.averageTime() : -1;
+    
+    bool netOk = Ping.ping(google, 2);
+    _lastPingInternet = netOk ? Ping.averageTime() : -1;
+    
+    Serial.printf("[DIAG] RSSI: %d | GW: %s (%d ms) | Internet: %s (%d ms)\n", 
+                  WiFi.RSSI(),
+                  gwOk ? "OK" : "FAIL", _lastPingGW, 
+                  netOk ? "OK" : "FAIL", _lastPingInternet);
 }
 
 void NetworkService::_setupWebServer(FileLogger& logger) {
