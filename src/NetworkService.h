@@ -31,6 +31,7 @@ public:
     String getUptimeString();
     int getReconnectCount();
     void setQuality(int score, int jitter);
+    int getBootPhase() { return _bootPhase; }
     bool consumeConnectionTrigger() { bool t = _connectionTrigger; _connectionTrigger = false; return t; }
 
 private:
