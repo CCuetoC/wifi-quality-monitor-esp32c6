@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <esp_task_wdt.h>
+#include <LittleFS.h>
 #include "config.h"
 #include "NetworkService.h"
 #include "QualityAnalyzer.h"
@@ -21,10 +22,12 @@ HealthState lastState = CRITICAL;
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n--- WIFI QUALITY MONITOR v4.0 START ---");
-    Serial.println(">>> V6.0 BOOT SUCCESS <<<");
+    delay(1000);
+    Serial.println("\n\n######################################");
+    Serial.println(">>>   V6.3-MIGRATED BOOT SUCCESS   <<<");
+    Serial.println("######################################\n");
     
-    // Watchdog Configuration (Diferido para estabilidad)
+    // Watchdog Configuration
     #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
         esp_task_wdt_config_t twdt_config = {
             .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,
@@ -36,19 +39,19 @@ void setup() {
     
     pinMode(LED_PIN, OUTPUT);
     renderer.begin();
-    renderer.drawBootScreen("INDUSTRIAL V4.0...");
+    renderer.drawBootScreen("V6.3-MIGRATING...");
     
     network.begin(WIFI_SSID, WIFI_PASS);
 
-    // V6.1: Limpieza forzada tras fix de arquitectura
+    // V6.3: Limpieza forzada tras fix de arquitectura
     Preferences pver;
     pver.begin("fver", false);
-    if (pver.getInt("v", 0) != 61) {
-        Serial.println("[!] V6.1: VERSION CHANGE DETECTED - WIPING FS...");
+    if (pver.getInt("v", 0) != 63) {
+        Serial.println("[!] V6.3: VERSION CHANGE DETECTED - WIPING FS...");
         LittleFS.begin(); 
         LittleFS.remove("/trend.bin");
         LittleFS.remove("/ram.bin");
-        pver.putInt("v", 61);
+        pver.putInt("v", 63);
     }
     pver.end();
     
@@ -71,7 +74,7 @@ void loop() {
         lastUIUpdate = millis();
         NetworkData netData = network.getData();
         
-        // Restauración de Historial Forense (V5.5: 46 muestras)
+        // Restauración de Historial Forense (46 muestras)
         static bool historyLoaded = false;
         if (!historyLoaded) {
             if (network.getBootPhase() >= 1) {
@@ -82,7 +85,7 @@ void loop() {
                 }
                 historyLoaded = true;
             } else {
-                renderer.drawBootScreen("ACCESSING FILES...");
+                renderer.drawBootScreen("SYTEM BOOTING...");
                 return;
             }
         }
@@ -90,24 +93,23 @@ void loop() {
         if (netData.connected) {
             // QoS Analysis
             HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
-            // V5.0: Propagar todas las métricas industriales
+            // Sincronizar métricas con el servicio de red
             network.setQuality(health.score, health.jitter, health.packetLoss, health.snr, health.linkEfficiency);
 
-            // Muestreo de Latencia (V5.3: 3s para coincidir con red)
+            // Muestreo de Latencia (3s)
             if (millis() - lastHistorySample >= 3000) {
                 analyzer.addSample(netData.pingInternet); 
                 lastHistorySample = millis();
             }
 
-            // Muestreo de RAM (cada 10s) - Escala 512 KB
+            // Muestreo de RAM (10s)
             static unsigned long lastRamSample = 0;
             if (millis() - lastRamSample >= 10000) {
-                // Guardamos el valor absoluto en KB para que el logger aplique la escala
                 analyzer.addRamSample(ESP.getFreeHeap() / 1024);
                 lastRamSample = millis();
             }
 
-            // Persistencia Industrial (cada 60s)
+            // Persistencia (60s)
             static unsigned long lastTrendSave = 0;
             if (millis() - lastTrendSave >= 60000) {
                 logger.saveTrend(analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex());
@@ -125,11 +127,11 @@ void loop() {
                 lastState = health.state;
             }
 
-            // Renderizado Local (LCD)
+            // Renderizado LCD Directo
             renderer.drawDashboard(netData, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex(),
                                    network.getUptimeString(), network.getReconnectCount(), 0.0);
             
-            digitalWrite(LED_PIN, (netData.rssi > -70) ? HIGH : LOW);
+            digitalWrite(LED_PIN, (netData.score > 70) ? HIGH : LOW);
         } else {
             renderer.drawDisconnected(network.getUptimeString(), network.getReconnectCount(), 0.0);
             digitalWrite(LED_PIN, (millis() % 500 < 250) ? HIGH : LOW);
