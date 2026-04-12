@@ -39,19 +39,18 @@ void setup() {
     
     network.begin(WIFI_SSID, WIFI_PASS);
 
-    // V5.3: Limpieza forzada de histórico si cambia la versión
+    // V5.4: Limpieza forzada de histórico si cambia la versión
     Preferences pver;
     pver.begin("fver", false);
-    if (pver.getInt("v", 0) != 53) {
-        Serial.println("[!] V5.3: VERSION CHANGE DETECTED - WIPING FS...");
-        LittleFS.begin(); // Asegurar FS para el borrado
+    if (pver.getInt("v", 0) != 54) {
+        Serial.println("[!] V5.4: VERSION CHANGE DETECTED - WIPING FS...");
+        LittleFS.begin(); 
         LittleFS.remove("/trend.bin");
         LittleFS.remove("/ram.bin");
-        pver.putInt("v", 53);
+        pver.putInt("v", 54);
     }
     pver.end();
     
-    // El Watchdog se activa al final del setup
     esp_task_wdt_add(NULL); 
 }
 
@@ -59,24 +58,21 @@ void loop() {
     esp_task_wdt_reset();
     network.update(logger);
     
-    // Sincronización de Buffers tras reconexión
     if (network.consumeConnectionTrigger()) {
         analyzer.resetBuffers();
         logger.logEvent("SYS_STATUS", "Link Restored - Buffers Flushed");
     }
 
-    // Loop de Control Local (1s)
     if (millis() - lastUIUpdate >= UI_REFRESH_MS) {
         lastUIUpdate = millis();
         NetworkService::NetworkData netData = network.getData();
         
-        // Restauración de Historial Forense
         static bool historyLoaded = false;
         if (!historyLoaded) {
             if (network.getBootPhase() >= 1) {
-                int hist[100], idx;
-                if (logger.loadTrend(hist, 100, &idx)) {
-                    analyzer.loadHistory(hist, 100, idx);
+                int hist[50], idx;
+                if (logger.loadTrend(hist, 50, &idx)) {
+                    analyzer.loadHistory(hist, 50, idx);
                     logger.logEvent("SYS_STATUS", "Visual History Restored");
                 }
                 historyLoaded = true;

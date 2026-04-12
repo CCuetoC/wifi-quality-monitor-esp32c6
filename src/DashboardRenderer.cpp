@@ -81,7 +81,7 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
 }
 
 void DashboardRenderer::_drawLagChart(const int* history, int size, int circularIndex) {
-    int x = 10, y = 10, w = 300, h = 65; // w=300 permite 100 muestras * 3px
+    int x = 10, y = 10, w = 300, h = 65; 
     
     // Fondo y Guías Log-Step
     _canvas.drawRect(x, y, w, h, 0x18C3); 
@@ -94,15 +94,16 @@ void DashboardRenderer::_drawLagChart(const int* history, int size, int circular
     _canvas.drawFastHLine(x, g100, w, 0x10A2);
     _canvas.drawFastHLine(x, g500, w, 0x5000);
     
+    // Escalas internas (Lado Izquierdo) para evitar cortes
     _canvas.setTextSize(1);
     _canvas.setTextColor(0x52AA); 
-    _canvas.setCursor(x + w + 4, g20 - 4); _canvas.print("20");
-    _canvas.setCursor(x + w + 4, g100 - 4); _canvas.print("100");
-    _canvas.setCursor(x + w + 4, g500 - 4); _canvas.print("500");
+    _canvas.setCursor(x + 2, g20 - 7); _canvas.print("20");
+    _canvas.setCursor(x + 2, g100 - 7); _canvas.print("100");
+    _canvas.setCursor(x + 2, g500 - 7); _canvas.print("500");
 
-    // Dibujo de Radar (2px barra + 1px gap)
-    int barW = 2;
-    int gap = 1;
+    // Dibujo de Radar (4px barra + 2px gap = 6px/punto)
+    int barW = 4;
+    int gap = 2;
     for (int i = 0; i < size; i++) {
         int idx = (circularIndex + i) % size;
         int val = history[idx];
@@ -118,7 +119,7 @@ void DashboardRenderer::_drawLagChart(const int* history, int size, int circular
     
     _canvas.setTextColor(TFT_WHITE);
     _canvas.setCursor(x + 5, y + 2);
-    _canvas.print("WAN LATENCY (ms) - 5.0m HISTORY");
+    _canvas.print("WAN LATENCY (ms) - 2.5m HISTORY");
 }
 
 int DashboardRenderer::_mapLatencyToY(int ms, int h) {
@@ -132,47 +133,47 @@ int DashboardRenderer::_mapLatencyToY(int ms, int h) {
 }
 
 void DashboardRenderer::_drawHealthBar(int score, QualityAnalyzer::HealthState state) {
-    int x = 20, y = 85, w = 240, h = 14;
+    int x = 10, y = 85, w = 260, h = 14; // Centrado y más ancho
     _canvas.drawRect(x, y, w, h, TFT_DARKGREY);
     
-    // Vúmetro de Precisión (20 bloques / 4 zonas)
     int segments = 20;
     int filledSegments = (score * segments) / 100;
     int segW = (w - 4) / segments;
     
     for (int i = 0; i < segments; i++) {
         uint16_t segColor;
-        if (i < 5) segColor = TFT_RED;             // 0-25%
-        else if (i < 10) segColor = TFT_ORANGE;    // 25-50%
-        else if (i < 15) segColor = 0xFFE0;        // 50-75% (TFT_YELLOW)
-        else segColor = 0x07E0;                    // 75-100% (Green)
+        if (i < 5) segColor = TFT_RED;
+        else if (i < 10) segColor = TFT_ORANGE;
+        else if (i < 15) segColor = 0xFFE0;
+        else segColor = 0x07E0;
         
         bool isActive = (i < filledSegments);
         uint16_t finalColor = isActive ? segColor : 0x18C3; 
         _canvas.fillRect(x + 2 + (i * segW), y + 2, segW - 1, h - 4, finalColor);
     }
     
+    // Porcentaje Integrado (Encima de la etiqueta para limpiar bordes)
     _canvas.setTextSize(2);
     _canvas.setTextColor(TFT_WHITE);
-    _canvas.setCursor(x + w + 10, y - 2);
+    _canvas.setCursor(x + w + 8, y - 2);
     _canvas.printf("%d%%", score);
     
     _canvas.setTextSize(1);
     _canvas.setTextColor(TFT_DARKGREY);
     _canvas.setCursor(x, y + 18);
-    _canvas.print("OVERALL QUALITY INDEX (PRECISION 5%)");
+    _canvas.print("OVERALL QUALITY INDEX (50 SAMPLES TREND)");
 }
 
 void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, float disconnectRate) {
-    int startX = 20, startY = 115;
-    int boxW = 135, boxH = 26;
+    int startX = 10, startY = 115; // Ajuste a margen 10
+    int boxW = 145, boxH = 26; // Cajas ligeramente más anchas
     
     auto drawBox = [&](int col, int row, const char* label, String val1, uint16_t col1, String val2, uint16_t col2) {
         int bx = startX + (col * (boxW + 10));
         int by = startY + (row * (boxH + 5));
-        _canvas.drawRect(bx, by, boxW, boxH, 0x2104); // Borde sutil
+        _canvas.drawRect(bx, by, boxW, boxH, 0x2104); 
         _canvas.setTextSize(1);
-        _canvas.setTextColor(0x7BEF); // Gris medio
+        _canvas.setTextColor(0x7BEF); 
         _canvas.setCursor(bx + 5, by + 4); _canvas.print(label);
         
         _canvas.setCursor(bx + 5, by + 14); 
@@ -181,9 +182,8 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
         _canvas.setTextColor(col2); _canvas.print(val2);
     };
 
-    // Thresholds: RSSI<-67, SNR<25, Lat>50, Jitter>10, Loss>1%
     uint16_t cS = (net.rssi < -67) ? TFT_ORANGE : TFT_WHITE;
-    uint16_t cSNR = (health.snr < 25) ? TFT_RED : TFT_WHITE;
+    uint16_t cSNR = (health.snr < 25) ? TFT_RED : TFT_CYAN;
     uint16_t cL = (health.packetLoss > 1) ? TFT_RED : TFT_WHITE;
     uint16_t cJ = (health.jitter > 10) ? TFT_ORANGE : TFT_WHITE;
     uint16_t cGW = (net.pingGW > 50) ? TFT_RED : TFT_GREEN;
@@ -191,24 +191,23 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
     uint16_t cEXT = (net.pingInternet > 50) ? TFT_RED : TFT_GREEN;
     if (net.pingInternet == -1) cEXT = TFT_RED;
 
-    // BOX 1: Phys (S / CH + Mode / SNR) - Reintroduciendo CH y AX
+    // BOX 1: Phys - SNR reubicado para evitar pisotón
+    String sigSnr = "S:" + String(net.rssi) + " SNR:" + String(health.snr);
     String chMode = "CH:" + String(net.channel) + "(" + net.phyMode + ")";
-    drawBox(0, 0, "PHYS (Signal/Link)", "S:" + String(net.rssi), cS, chMode, TFT_CYAN);
-    _canvas.setTextColor(cSNR); _canvas.setCursor(startX + 105, startY + 4); _canvas.printf("%d", health.snr);
+    drawBox(0, 0, "PHYS (Signal/Link)", sigSnr, cS, chMode, TFT_CYAN);
 
-    // BOX 2: Net (Loss / Jitter)
+    // BOX 2: Net
     drawBox(1, 0, "QUAL (Loss/Jit)", "L:" + String(health.packetLoss) + "%", cL, "J:" + String(health.jitter) + "ms", cJ);
     
-    // BOX 3: Resp (LAN / WAN)
+    // BOX 3: Resp
     drawBox(0, 1, "RESP (Local/Ext)", "GW:" + String(net.pingGW), cGW, "EXT:" + String(net.pingInternet), cEXT);
     
-    // BOX 4: Audit (Toggle Uptime/BSSID)
+    // BOX 4: Audit
     bool toggle = (millis() % 10000 < 5000);
     if (toggle) {
         drawBox(1, 1, "AUDIT (Uptime)", uptime.substring(0,8), TFT_WHITE, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
     } else {
-        // Reducir BSSID para que entre (últimos 4 octetos o scroll)
-        String shortBssid = net.bssid.substring(9); // Solo XX:XX:XX:XX
+        String shortBssid = net.bssid.substring(9); 
         drawBox(1, 1, "AUDIT (BSSID)", shortBssid, TFT_YELLOW, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
     }
 }

@@ -125,7 +125,7 @@ bool FileLogger::saveRam(const int* h, int idx) {
     File f = LittleFS.open("/ram.bin", FILE_WRITE);
     if(!f) return false;
     f.write((uint8_t*)&idx, sizeof(int));
-    f.write((uint8_t*)h, 100*sizeof(int));
+    f.write((uint8_t*)h, 50*sizeof(int));
     f.close();
     return true;
 }
@@ -135,7 +135,7 @@ bool FileLogger::loadRam(int* h, int* idx) {
     File f = LittleFS.open("/ram.bin", FILE_READ);
     if(!f) return false;
     f.read((uint8_t*)idx, sizeof(int));
-    f.read((uint8_t*)h, 100*sizeof(int));
+    f.read((uint8_t*)h, 50*sizeof(int));
     f.close();
     return true;
 }
