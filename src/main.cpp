@@ -22,6 +22,7 @@ QualityAnalyzer::HealthState lastState = QualityAnalyzer::CRITICAL;
 void setup() {
     Serial.begin(115200);
     Serial.println("\n--- WIFI QUALITY MONITOR v4.0 START ---");
+    Serial.println(">>> V6.0 BOOT SUCCESS <<<");
     
     // Watchdog Configuration (Diferido para estabilidad)
     #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
