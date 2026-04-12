@@ -140,7 +140,7 @@ void NetworkService::_setupWebServer(FileLogger& logger, DashboardRenderer& rend
     _server->on("/config", [this]() { _handleConfig(); });
     _server->on("/capture.bmp", [this, &renderer]() { renderer.serveScreenshot(*_server); });
     _server->on("/debug", [this]() {
-        String info = "{\"v\":\"6.2-MIRROR\",\"build\":\"" __DATE__ " " __TIME__ "\"}";
+        String info = "{\"v\":\"6.4-TURBO-MASTER\",\"build\":\"" __DATE__ " " __TIME__ "\"}";
         _server->send(200, "application/json", info);
     });
     _server->on("/status", [this]() {
@@ -154,7 +154,7 @@ void NetworkService::_setupWebServer(FileLogger& logger, DashboardRenderer& rend
 void NetworkService::_handleRoot(FileLogger& logger) {
     String h = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>" + getCommonCSS();
     h += "<script>function ck(){let n=new Date();document.getElementById('clk').innerText=n.toISOString().split('T')[0]+' '+n.toTimeString().split(' ')[0];} setInterval(ck,1000);</script></head><body>";
-    h += "<div class='top-bar'><div class='title'>WIFI QUALITY MONITOR</div><div class='nav'><a href='/'>DASHBOARD</a><a href='/logs'>LOGGER</a><a href='/config'>SETTINGS</a></div><div class='clock' id='clk'>--</div></div>";
+    h += "<div class='top-bar' style='background:#f0f; color:#000;'><div class='title'>[ POWERTECH V6.4-TURBO-MASTER ]</div><div class='nav'><a href='/'>DASHBOARD</a><a href='/logs'>LOGGER</a><a href='/config'>SETTINGS</a></div><div class='clock' id='clk'>--</div></div>";
     
     // ZONA 0: V-MIRROR (Espejo Visual Industrial)
     h += "<h2>LIVE V-DISPLAY (LCD MIRROR)</h2>";
