@@ -6,6 +6,7 @@
 #include "CommonTypes.h"
 
 #include <WebServer.h>
+#include <WiFi.h>
 
 class DashboardRenderer {
 public:
