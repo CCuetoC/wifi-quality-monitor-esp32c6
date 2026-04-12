@@ -28,6 +28,8 @@ public:
     bool consumeConnectionTrigger() { bool t = _connectionTrigger; _connectionTrigger = false; return t; }
 
 private:
+    unsigned long _bootTime = 0;
+    unsigned long _lastHeartbeat = 0;
     unsigned long _startTime = 0;
     int _reconnectCount = 0;
     unsigned long _lastPingTime = 0;
