@@ -1,6 +1,6 @@
 #include "QualityAnalyzer.h"
 
-QualityAnalyzer::HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pingMs) {
+HealthMetrics QualityAnalyzer::calculateHealth(int rssi, int pingMs) {
     HealthMetrics metrics;
     
     // 1. Warm-up

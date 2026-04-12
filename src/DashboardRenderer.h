@@ -3,8 +3,7 @@
 
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
-#include "NetworkService.h"
-#include "QualityAnalyzer.h"
+#include "CommonTypes.h"
 
 #include <WebServer.h>
 
@@ -14,8 +13,8 @@ public:
     void begin();
     void serveScreenshot(WebServer& server); 
     void drawBootScreen(const char* state);
-    void drawDashboard(const NetworkService::NetworkData& net, 
-                       const QualityAnalyzer::HealthMetrics& health, 
+    void drawDashboard(const NetworkData& net, 
+                       const HealthMetrics& health, 
                        const int* history, int historySize, int circularIndex,
                        String uptime, int reconnects, float disconnectRate);
     void drawDisconnected(String uptime, int reconnects, float disconnectRate);

@@ -100,8 +100,8 @@ void DashboardRenderer::drawBootScreen(const char* state) {
     _canvas.pushSprite(&_tft, 0, 0);
 }
 
-void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net, 
-                               const QualityAnalyzer::HealthMetrics& health, 
+void DashboardRenderer::drawDashboard(const NetworkData& net, 
+                               const HealthMetrics& health, 
                                const int* history, int historySize, int circularIndex,
                                String uptime, int reconnects, float disconnectRate) {
     _canvas.fillScreen(TFT_BLACK);
@@ -208,7 +208,7 @@ void DashboardRenderer::_drawHealthBar(int score, QualityAnalyzer::HealthState s
     _canvas.print("OVERALL QUALITY INDEX (46 SAMPLES TREND)");
 }
 
-void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, float disconnectRate) {
+void DashboardRenderer::_drawMetricsGrid(const NetworkData& net, const HealthMetrics& health, String uptime, float disconnectRate) {
     int startX = 10, startY = 118; // Bajado ligeramente
     int boxW = 145, boxH = 28; // Cajas más altas
     
@@ -257,11 +257,11 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
         drawBox(1, 1, "AUDIT (BSSID)", shortBssid, TFT_YELLOW, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
     }
 
-    // Badge FINAL (V6.0 Mirror)
+    // Badge FINAL (V6.1 Mirror)
     _canvas.setTextColor(TFT_MAGENTA); 
     _canvas.setTextSize(1);
     _canvas.setCursor(_canvas.width() - 75, _canvas.height() - 8);
-    _canvas.print("V6.0-MIRROR");
+    _canvas.print("V6.1-MIRROR");
 }
 
 uint16_t DashboardRenderer::_getColorForState(QualityAnalyzer::HealthState state) {

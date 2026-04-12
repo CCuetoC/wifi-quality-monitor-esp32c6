@@ -186,7 +186,7 @@ String NetworkService::getUptimeString() {
     return String(b); 
 }
 
-NetworkService::NetworkData NetworkService::getData() { 
+NetworkData NetworkService::getData() { 
     NetworkData d; d.connected = (WiFi.status() == WL_CONNECTED); 
     if (d.connected) { 
         d.rssi = WiFi.RSSI(); d.ip = WiFi.localIP().toString(); d.channel = WiFi.channel(); 

@@ -7,28 +7,13 @@
 #include <WebServer.h>
 #include <DNSServer.h>
 #include "FileLogger.h"
+#include "CommonTypes.h"
 
 class DashboardRenderer; // Forward declaration
 
 class NetworkService {
 public:
     NetworkService();
-
-    struct NetworkData {
-        bool connected;
-        int rssi;
-        int pingGW;
-        int pingInternet;
-        String ip;
-        int channel;
-        int score;
-        int jitter;
-        int packetLoss;
-        int snr;
-        float linkEfficiency;
-        String bssid;
-        String phyMode;
-    };
 
     void begin(const char* ssid, const char* pass);
     void update(FileLogger& logger, DashboardRenderer& renderer);

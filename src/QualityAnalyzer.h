@@ -2,31 +2,11 @@
 #define QUALITY_ANALYZER_H
 
 #include <Arduino.h>
+#include "CommonTypes.h"
 
 class QualityAnalyzer {
 public:
-    enum HealthState { CRITICAL, DEGRADED, GOOD, EXCELLENT };
-
     static const char* getStateName(HealthState state) {
-        switch(state) {
-            case EXCELLENT: return "EXCELLENT";
-            case GOOD:      return "GOOD";
-            case DEGRADED:  return "DEGRADED";
-            case CRITICAL:  return "CRITICAL";
-            default:        return "UNKNOWN";
-        }
-    }
-
-    struct HealthMetrics {
-        int score;           // 0-100%
-        HealthState state;   // Categoría lógica
-        const char* label;   // "EXCELLENT", "GOOD", etc.
-        bool isStable;       // ¿La señal fluctúa poco?
-        int jitter;          // Variabilidad en ms
-        int packetLoss;      // % de pérdidas (ventana actual)
-        int snr;             // SNR estimado (dB)
-        float linkEfficiency; // Tasa de éxito de transmisión (0.0 a 1.0)
-    };
 
     static const int HISTORY_SIZE = 46;
     
