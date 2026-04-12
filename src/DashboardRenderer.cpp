@@ -47,6 +47,50 @@ void DashboardRenderer::begin() {
     }
 }
 
+void DashboardRenderer::serveScreenshot(WebServer& server) {
+    int w = _canvas.width();
+    int h = _canvas.height();
+    int rowSize = (w * 3 + 3) & ~3;
+    uint32_t fileSize = 54 + (rowSize * h);
+
+    // 1. Headers HTTP
+    server.setContentLength(fileSize);
+    server.send(200, "image/bmp", "");
+    WiFiClient client = server.client();
+
+    // 2. BMP Header (54 bytes)
+    uint8_t header[54] = {
+        'B', 'M', 
+        (uint8_t)(fileSize), (uint8_t)(fileSize >> 8), (uint8_t)(fileSize >> 16), (uint8_t)(fileSize >> 24),
+        0, 0, 0, 0, 
+        54, 0, 0, 0, 
+        40, 0, 0, 0, 
+        (uint8_t)(w), (uint8_t)(w >> 8), (uint8_t)(w >> 16), (uint8_t)(w >> 24),
+        (uint8_t)(h), (uint8_t)(h >> 8), (uint8_t)(h >> 16), (uint8_t)(h >> 24),
+        1, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+    client.write(header, 54);
+
+    // 3. Streaming de Pixeles (BMP es Bottom-to-Top)
+    uint8_t rgb[w * 3];
+    for (int y = h - 1; y >= 0; y--) {
+        for (int x = 0; x < w; x++) {
+            uint16_t c = _canvas.readPixel(x, y);
+            // RGB565 to BGR888
+            rgb[x * 3 + 0] = (uint8_t)((c & 0x001F) << 3);  // Blue
+            rgb[x * 3 + 1] = (uint8_t)((c & 0x07E0) >> 3);  // Green
+            rgb[x * 3 + 2] = (uint8_t)((c & 0xF800) >> 8);  // Red
+        }
+        client.write(rgb, w * 3);
+        // Padding if needed (w=320 doesn't need it)
+        if (rowSize > w * 3) {
+            uint8_t pad[4] = {0,0,0,0};
+            client.write(pad, rowSize - w * 3);
+        }
+        yield(); // Feed Watchdog during heavy I/O
+    }
+}
+
 void DashboardRenderer::drawBootScreen(const char* state) {
     _canvas.fillScreen(TFT_BLACK);
     _canvas.setTextColor(TFT_WHITE);

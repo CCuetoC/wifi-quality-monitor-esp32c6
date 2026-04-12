@@ -8,6 +8,8 @@
 #include <DNSServer.h>
 #include "FileLogger.h"
 
+class DashboardRenderer; // Forward declaration
+
 class NetworkService {
 public:
     NetworkService();
@@ -29,7 +31,7 @@ public:
     };
 
     void begin(const char* ssid, const char* pass);
-    void update(FileLogger& logger);
+    void update(FileLogger& logger, DashboardRenderer& renderer);
     NetworkData getData();
     bool isConnected();
     
@@ -69,7 +71,7 @@ private:
     DNSServer* _dnsServer = nullptr;
     
     void _performPing();
-    void _setupWebServer(FileLogger& logger);
+    void _setupWebServer(FileLogger& logger, DashboardRenderer& renderer);
     void _handleRoot(FileLogger& logger);
     void _handleLogs(FileLogger& logger);
     void _handleConfig();

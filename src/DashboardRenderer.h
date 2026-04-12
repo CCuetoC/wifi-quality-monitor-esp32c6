@@ -6,9 +6,13 @@
 #include "NetworkService.h"
 #include "QualityAnalyzer.h"
 
+#include <WebServer.h>
+
 class DashboardRenderer {
 public:
+    DashboardRenderer();
     void begin();
+    void serveScreenshot(WebServer& server); 
     void drawBootScreen(const char* state);
     void drawDashboard(const NetworkService::NetworkData& net, 
                        const QualityAnalyzer::HealthMetrics& health, 

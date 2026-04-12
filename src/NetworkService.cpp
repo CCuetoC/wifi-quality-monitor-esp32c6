@@ -45,7 +45,7 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     _startTime = millis();
 }
 
-void NetworkService::update(FileLogger& logger) {
+void NetworkService::update(FileLogger& logger, DashboardRenderer& renderer) {
     unsigned long u = millis() - _startTime;
     if (_bootPhase == 0 && u > 8000) {
         logger.begin(); _prefs.begin("net_stats", false);
@@ -56,7 +56,7 @@ void NetworkService::update(FileLogger& logger) {
                       WiFi.subnetMask().toString().c_str(), WiFi.dnsIP().toString().c_str());
         _bootPhase = 1; 
     }
-    if (_bootPhase == 1 && u > 12000) { if (!_server) _server = new WebServer(80); if (!_dnsServer) _dnsServer = new DNSServer(); _setupWebServer(logger); _bootPhase = 2; }
+    if (_bootPhase == 1 && u > 12000) { if (!_server) _server = new WebServer(80); if (!_dnsServer) _dnsServer = new DNSServer(); _setupWebServer(logger, renderer); _bootPhase = 2; }
     
     // Huso horario Lima (TZ Native)
     if (_bootPhase == 2 && u > 18000) { configTime(0, 0, "pool.ntp.org", "time.google.com"); setenv("TZ", "<-05>5", 1); tzset(); _bootPhase = 3; }
@@ -118,10 +118,11 @@ void NetworkService::_performPing() {
                   gwOk?"OK":"FAIL", _lastPingGW, extOk?"OK":"FAIL", _lastPingInternet);
 }
 
-void NetworkService::_setupWebServer(FileLogger& logger) {
+void NetworkService::_setupWebServer(FileLogger& logger, DashboardRenderer& renderer) {
     _server->on("/", [this, &logger]() { _handleRoot(logger); });
     _server->on("/logs", [this, &logger]() { _handleLogs(logger); });
     _server->on("/config", [this]() { _handleConfig(); });
+    _server->on("/capture.bmp", [this, &renderer]() { renderer.serveScreenshot(*_server); });
     _server->on("/status", [this]() {
         uint32_t fh = ESP.getFreeHeap();
         String j = "{\"u\":\"" + getUptimeString() + "\",\"r\":" + String(WiFi.RSSI()) + ",\"pg\":" + String(_lastPingGW) + ",\"pn\":" + String(_lastPingInternet) + ",\"qs\":" + String(_lastScore) + ",\"re\":" + String(_reconnectCount) + ",\"h\":" + String(fh/1024) + "}";
@@ -132,10 +133,15 @@ void NetworkService::_setupWebServer(FileLogger& logger) {
 
 void NetworkService::_handleRoot(FileLogger& logger) {
     String h = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>" + getCommonCSS();
-    // V4.0: FULL PAGE REFRESH cada 5s para actualizar gráficas
-    h += "<script>function ck(){let n=new Date();document.getElementById('clk').innerText=n.toISOString().split('T')[0]+' '+n.toTimeString().split(' ')[0];} setInterval(ck,1000); setTimeout(()=>location.reload(),5000);</script></head><body>";
+    h += "<script>function ck(){let n=new Date();document.getElementById('clk').innerText=n.toISOString().split('T')[0]+' '+n.toTimeString().split(' ')[0];} setInterval(ck,1000);</script></head><body>";
     h += "<div class='top-bar'><div class='title'>WIFI QUALITY MONITOR</div><div class='nav'><a href='/'>DASHBOARD</a><a href='/logs'>LOGGER</a><a href='/config'>SETTINGS</a></div><div class='clock' id='clk'>--</div></div>";
     
+    // ZONA 0: V-MIRROR (Espejo Visual Industrial)
+    h += "<h2>LIVE V-DISPLAY (LCD MIRROR)</h2>";
+    h += "<div style='max-width:1100px;margin:10px auto;background:#111;padding:15px;border-radius:10px;border:1px solid #0fc;text-align:center;'>";
+    h += "<img id='vdisplay' src='/capture.bmp' style='width:100%;max-width:640px;border:2px solid #333;border-radius:4px;image-rendering:pixelated;'>";
+    h += "<div style='margin-top:10px;'><button onclick=\"document.getElementById('vdisplay').src='/capture.bmp?'+new Date().getTime()\" style='background:#1a1a1a;color:#0fc;border:1px solid #0fc;padding:8px 20px;cursor:pointer;border-radius:4px;font-size:0.8em;font-weight:bold;'>REFRESH LCD VIEW</button></div></div>";
+
     h += "<h2>LIVE METRICS</h2><div class='grid'>";
     h += "<div class='card'><div>UPTIME</div><div class='val'>"+getUptimeString()+"</div></div>";
     h += "<div class='card'><div>RSSI</div><div class='val'>"+String(WiFi.RSSI())+" dBm</div></div><div class='card'><div>SCORE</div><div class='val'>"+String(_lastScore)+"%</div></div>";
