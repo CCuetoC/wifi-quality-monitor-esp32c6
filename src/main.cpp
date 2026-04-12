@@ -69,7 +69,7 @@ void loop() {
     // Loop de Control Local (1s)
     if (millis() - lastUIUpdate >= UI_REFRESH_MS) {
         lastUIUpdate = millis();
-        NetworkService::NetworkData netData = network.getData();
+        NetworkData netData = network.getData();
         
         // Restauración de Historial Forense (V5.5: 46 muestras)
         static bool historyLoaded = false;
@@ -89,7 +89,7 @@ void loop() {
 
         if (netData.connected) {
             // QoS Analysis
-            QualityAnalyzer::HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
+            HealthMetrics health = analyzer.calculateHealth(netData.rssi, netData.pingInternet);
             // V5.0: Propagar todas las métricas industriales
             network.setQuality(health.score, health.jitter, health.packetLoss, health.snr, health.linkEfficiency);
 
