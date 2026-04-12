@@ -62,9 +62,9 @@ void loop() {
         static bool historyLoaded = false;
         if (!historyLoaded) {
             if (network.getBootPhase() >= 1) {
-                int hist[140], idx;
-                if (logger.loadTrend(hist, 140, &idx)) {
-                    analyzer.loadHistory(hist, 140, idx);
+                int hist[100], idx;
+                if (logger.loadTrend(hist, 100, &idx)) {
+                    analyzer.loadHistory(hist, 100, idx);
                     logger.logEvent("SYS_STATUS", "Visual History Restored");
                 }
                 historyLoaded = true;
@@ -80,9 +80,9 @@ void loop() {
             // V5.0: Propagar todas las métricas industriales
             network.setQuality(health.score, health.jitter, health.packetLoss, health.snr, health.linkEfficiency);
 
-            // Muestreo de Latencia (cada 2s: ventana de ~1.6 min en 50 muestras)
-            if (millis() - lastHistorySample >= 2000) {
-                analyzer.addSample(netData.pingInternet); // V5.0: Almacenar latencia cruda (ms)
+            // Muestreo de Latencia (V5.3: 3s para coincidir con red)
+            if (millis() - lastHistorySample >= 3000) {
+                analyzer.addSample(netData.pingInternet); 
                 lastHistorySample = millis();
             }
 

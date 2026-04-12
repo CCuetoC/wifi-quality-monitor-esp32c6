@@ -141,14 +141,13 @@ void NetworkService::_handleRoot(FileLogger& logger) {
     h += "<div class='card'><div>RSSI</div><div class='val'>"+String(WiFi.RSSI())+" dBm</div></div><div class='card'><div>SCORE</div><div class='val'>"+String(_lastScore)+"%</div></div>";
     h += "<div class='card'><div>GATEWAY</div><div class='val'>"+String(_lastPingGW)+" ms</div></div><div class='card'><div>LATENCY (ms)</div><div class='val'>"+String(_lastPingInternet)+" ms</div></div>";
     h += "<div class='card'><div>RAM (FREE)</div><div class='val'>"+String(ESP.getFreeHeap()/1024)+" KB</div></div><div class='card'><div>RECONS</div><div class='val'>"+String(_reconnectCount)+"</div></div></div>";
-    
-    h += "<h2>WIFI QUALITY</h2><div class='chart-box'><div class='axis-l'><div>100%</div><div>75%</div><div>50%</div><div>25%</div><div>0%</div></div><div class='canvas'><svg width='100%' height='100%' viewBox='0 0 600 110' preserveAspectRatio='none'>";
+     h += "<h2>WIFI QUALITY</h2><div class='chart-box'><div class='axis-l'><div>100%</div><div>75%</div><div>50%</div><div>25%</div><div>0%</div></div><div class='canvas'><svg width='100%' height='100%' viewBox='0 0 600 110' preserveAspectRatio='none'>";
     for(int y=10; y<=110; y+=25) h += "<line x1='0' y1='"+String(y)+"' x2='600' y2='"+String(y)+"' stroke='#222'/>";
-    int hi[140], id; if(logger.loadTrend(hi, 140, &id)) { h += "<polyline points='"; for(int i=0; i<140; i++) h += String(i*4.28) + "," + String(110-(hi[(id+i)%140]/10)) + " "; h += "' fill='none' stroke='#0fc' stroke-width='1.5'/></svg></div>"; h += "<div class='axis-r'><div>EXCELLENT</div><div>GOOD</div><div>DEGRADED</div><div>CRITICAL</div></div></div>"; }
+    int hi[100], id; if(logger.loadTrend(hi, 100, &id)) { h += "<polyline points='"; for(int i=0; i<100; i++) h += String(i*6) + "," + String(110-(hi[(id+i)%100]/10)) + " "; h += "' fill='none' stroke='#0fc' stroke-width='1.5'/></svg></div>"; h += "<div class='axis-r'><div>EXCELLENT</div><div>GOOD</div><div>DEGRADED</div><div>CRITICAL</div></div></div>"; }
     
     h += "<h2>SYSTEM RAM</h2><div class='chart-box'><div class='axis-l'><div>100%</div><div>75%</div><div>50%</div><div>25%</div><div>0%</div></div><div class='canvas'><svg width='100%' height='100%' viewBox='0 0 600 110' preserveAspectRatio='none'>";
     for(int y=10; y<=110; y+=25) h += "<line x1='0' y1='"+String(y)+"' x2='600' y2='"+String(y)+"' stroke='#222'/>";
-    int rh[140], rid; if(logger.loadRam(rh, &rid)) { h += "<polyline points='"; for(int i=0; i<140; i++) h += String(i*4.28) + "," + String(110-((rh[(rid+i)%140]*100)/512)) + " "; h += "' fill='none' stroke='#48f' stroke-width='1.5'/></svg></div>"; h += "<div class='axis-r'><div>512 KB</div><div>384 KB</div><div>256 KB</div><div>128 KB</div><div>0 KB</div></div></div>"; }
+    int rh[100], rid; if(logger.loadRam(rh, &rid)) { h += "<polyline points='"; for(int i=0; i<100; i++) h += String(i*6) + "," + String(110-((rh[(rid+i)%100]*100)/512)) + " "; h += "' fill='none' stroke='#48f' stroke-width='1.5'/></svg></div>"; h += "<div class='axis-r'><div>512 KB</div><div>384 KB</div><div>256 KB</div><div>128 KB</div><div>0 KB</div></div></div>"; }
     h += "</body></html>"; _server->send(200, "text/html", h);
 }
 
@@ -158,8 +157,9 @@ void NetworkService::_handleLogs(FileLogger& logger) {
     _server->sendContent("<div class='top-bar'><div class='title'>WIFI QUALITY MONITOR</div><div class='nav'><a href='/'>DASHBOARD</a><a href='/logs'>LOGGER</a><a href='/config'>SETTINGS</a></div><div class='clock'>LOGGER ACTIVE</div></div>");
     _server->sendContent("<h2>EVENT LOGGER</h2><div class='log-container'><div class='log-grid log-h'><div>DATE</div><div>TIME</div><div>EVENT</div><div>DESCRIPTION</div></div><div class='log-scroll'>");
     File f = LittleFS.open("/log.txt", FILE_READ); if (f.size() > 5000) f.seek(f.size() - 5000); String data = f.readString(); f.close();
-    int lineStart = data.indexOf('\n') + 1; String buf[140]; int count = 0;
-    while(lineStart < data.length() && count < 140) { // V4.1: Límite estricto 140 eventos
+    int lineStart = data.indexOf('\n') + 1; String buf[100]; int count = 0;
+    while(lineStart < data.length() && count < 100) { 
+) { // V4.1: Límite estricto 140 eventos
         int next = data.indexOf('\n', lineStart); if (next == -1) next = data.length(); 
         buf[count++] = data.substring(lineStart, next); lineStart = next + 1; 
     }

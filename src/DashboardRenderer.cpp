@@ -75,49 +75,48 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
 }
 
 void DashboardRenderer::_drawLagChart(const int* history, int size, int circularIndex) {
-    int x = 20, y = 10, w = 280, h = 65;
+    int x = 10, y = 10, w = 300, h = 65; // w=300 permite 100 muestras * 3px
     
     // Fondo y Guías Log-Step
-    _canvas.drawRect(x, y, w, h, 0x18C3); // Gris oscuro
+    _canvas.drawRect(x, y, w, h, 0x18C3); 
     
-    // Guías de escala (4, 20, 100, 500 ms)
     int g20 = y + h - _mapLatencyToY(20, h);
     int g100 = y + h - _mapLatencyToY(100, h);
     int g500 = y + h - _mapLatencyToY(500, h);
     
-    _canvas.drawFastHLine(x, g20, w, 0x0100);  // Cyan oscuro
-    _canvas.drawFastHLine(x, g100, w, 0x10A2); // Azul oscuro
-    _canvas.drawFastHLine(x, g500, w, 0x5000); // Rojo oscuro
+    _canvas.drawFastHLine(x, g20, w, 0x0100); 
+    _canvas.drawFastHLine(x, g100, w, 0x10A2);
+    _canvas.drawFastHLine(x, g500, w, 0x5000);
     
-    // Etiquetas de Escala
     _canvas.setTextSize(1);
-    _canvas.setTextColor(0x52AA); // Gris
-    _canvas.setCursor(x - 18, g20 - 4); _canvas.print("20");
-    _canvas.setCursor(x - 18, g100 - 4); _canvas.print("100");
-    _canvas.setCursor(x - 18, g500 - 4); _canvas.print("500");
+    _canvas.setTextColor(0x52AA); 
+    _canvas.setCursor(x + w + 4, g20 - 4); _canvas.print("20");
+    _canvas.setCursor(x + w + 4, g100 - 4); _canvas.print("100");
+    _canvas.setCursor(x + w + 4, g500 - 4); _canvas.print("500");
 
-    // Dibujo de Barras (Alta Densidad: 140 muestras)
-    float barW = (float)w / size; // 280 / 140 = 2px
+    // Dibujo de Radar (2px barra + 1px gap)
+    int barW = 2;
+    int gap = 1;
     for (int i = 0; i < size; i++) {
         int idx = (circularIndex + i) % size;
         int val = history[idx];
-        if (val == 0) continue; 
+        if (val <= 0) continue; 
 
         int barH = _mapLatencyToY(val, h);
-        uint16_t color = 0x07FF; // Cyan base
+        uint16_t color = 0x07FF; 
         if (val > 100) color = TFT_YELLOW;
         if (val > 500 || val == -1) color = TFT_RED;
         
-        // Barras de 2px sin espacio intermedio para mayor densidad
-        _canvas.fillRect(x + (i * barW), y + h - barH, barW, barH, color);
+        _canvas.fillRect(x + (i * (barW + gap)), y + h - barH, barW, barH, color);
     }
     
     _canvas.setTextColor(TFT_WHITE);
     _canvas.setCursor(x + 5, y + 2);
-    _canvas.print("WAN LATENCY (ms) - Hi-Density (4.6m)");
+    _canvas.print("WAN LATENCY (ms) - 5.0m HISTORY");
 }
 
 int DashboardRenderer::_mapLatencyToY(int ms, int h) {
+    if (ms <= 0) return 0;
     if (ms == -1) return h; 
     if (ms <= 20) return map(ms, 0, 20, 0, 15);
     if (ms <= 100) return 15 + map(ms, 20, 100, 0, 15);
@@ -128,27 +127,25 @@ int DashboardRenderer::_mapLatencyToY(int ms, int h) {
 
 void DashboardRenderer::_drawHealthBar(int score, QualityAnalyzer::HealthState state) {
     int x = 20, y = 85, w = 240, h = 14;
-    
-    // Contenedor
     _canvas.drawRect(x, y, w, h, TFT_DARKGREY);
     
-    // Vúmetro Segmentado (12 bloques con colores fijos por zona)
-    int segments = 12;
+    // Vúmetro de Precisión (20 bloques / 4 zonas)
+    int segments = 20;
     int filledSegments = (score * segments) / 100;
     int segW = (w - 4) / segments;
     
     for (int i = 0; i < segments; i++) {
         uint16_t segColor;
-        if (i < 3) segColor = TFT_RED;             // Zona Crítica (0-25%)
-        else if (i < 7) segColor = TFT_ORANGE;      // Zona Alerta (25-58%)
-        else segColor = 0x07E0;                    // Zona Óptima (Green)
+        if (i < 5) segColor = TFT_RED;             // 0-25%
+        else if (i < 10) segColor = TFT_ORANGE;    // 25-50%
+        else if (i < 15) segColor = 0xFFE0;        // 50-75% (TFT_YELLOW)
+        else segColor = 0x07E0;                    // 75-100% (Green)
         
         bool isActive = (i < filledSegments);
-        uint16_t finalColor = isActive ? segColor : 0x18C3; // Apagado si no llega el score
+        uint16_t finalColor = isActive ? segColor : 0x18C3; 
         _canvas.fillRect(x + 2 + (i * segW), y + 2, segW - 1, h - 4, finalColor);
     }
     
-    // Porcentaje a la derecha
     _canvas.setTextSize(2);
     _canvas.setTextColor(TFT_WHITE);
     _canvas.setCursor(x + w + 10, y - 2);
@@ -157,7 +154,7 @@ void DashboardRenderer::_drawHealthBar(int score, QualityAnalyzer::HealthState s
     _canvas.setTextSize(1);
     _canvas.setTextColor(TFT_DARKGREY);
     _canvas.setCursor(x, y + 18);
-    _canvas.print("OVERALL QUALITY INDEX");
+    _canvas.print("OVERALL QUALITY INDEX (PRECISION 5%)");
 }
 
 void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, float disconnectRate) {
