@@ -31,11 +31,11 @@ private:
     LGFX_C6 _tft;
     LGFX_Sprite _canvas;
     
-    uint16_t _getColorForState(QualityAnalyzer::HealthState state);
-    void _drawLagChart(const int* history, int size, int circularIndex);
-    void _drawHealthBar(int score, QualityAnalyzer::HealthState state);
-    void _drawMetricsGrid(const NetworkService::NetworkData& net, 
-                         const QualityAnalyzer::HealthMetrics& health, 
+    uint16_t _getColorForState(HealthState state);
+    void _drawLagChart(const NetworkData& net, const int* history, int size, int circularIndex);
+    void _drawHealthBar(int score, HealthState state);
+    void _drawMetricsGrid(const NetworkData& net, 
+                         const HealthMetrics& health, 
                          String uptime, float disconnectRate);
     int _mapLatencyToY(int ms, int maxHeight);
 };

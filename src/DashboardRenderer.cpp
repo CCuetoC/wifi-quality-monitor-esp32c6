@@ -107,7 +107,7 @@ void DashboardRenderer::drawDashboard(const NetworkData& net,
     _canvas.fillScreen(TFT_BLACK);
     
     // ZONA 1: Lag Spikes Trend (Arriba)
-    _drawLagChart(history, historySize, circularIndex);
+    _drawLagChart(net, history, historySize, circularIndex);
     
     // ZONA 2: Overall Quality Bar (Centro)
     _drawHealthBar(health.score, health.state);
@@ -115,16 +115,16 @@ void DashboardRenderer::drawDashboard(const NetworkData& net,
     // ZONA 3: Metrics Grid (Abajo)
     _drawMetricsGrid(net, health, uptime, disconnectRate);
     
-    // Firma de Versión (Validación Force Deploy)
+    // Firma de Versión (v6.3 Mirror)
     _canvas.setTextColor(0x52AA); // Gris
     _canvas.setTextSize(1);
     _canvas.setCursor(_canvas.width() - 48, _canvas.height() - 8);
-    _canvas.print("V5.3-DEM");
+    _canvas.print("V6.3");
     
     _canvas.pushSprite(&_tft, 0, 0);
 }
 
-void DashboardRenderer::_drawLagChart(const int* history, int size, int circularIndex) {
+void DashboardRenderer::_drawLagChart(const NetworkData& net, const int* history, int size, int circularIndex) {
     int x = 10, y = 10, w = 300, h = 65; 
     
     // Fondo y Guías Log-Step
@@ -163,7 +163,7 @@ void DashboardRenderer::_drawLagChart(const int* history, int size, int circular
     
     _canvas.setTextColor(TFT_WHITE);
     _canvas.setCursor(x + 30, y + 2);
-    _canvas.print("WAN LATENCY (ms) - 2.5m HISTORY");
+    _canvas.printf("LATENCY (ms) - IP: %s", net.ip.c_str());
 }
 
 int DashboardRenderer::_mapLatencyToY(int ms, int h) {
@@ -176,7 +176,7 @@ int DashboardRenderer::_mapLatencyToY(int ms, int h) {
     return h;
 }
 
-void DashboardRenderer::_drawHealthBar(int score, QualityAnalyzer::HealthState state) {
+void DashboardRenderer::_drawHealthBar(int score, HealthState lastState) {
     int xArr = 10, yArr = 85, wArr = 240, hArr = 14; 
     _canvas.drawRect(xArr, yArr, wArr, hArr, 0x7BEF); // Gris claro para el marco
     
@@ -257,20 +257,20 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkData& net, const HealthMet
         drawBox(1, 1, "AUDIT (BSSID)", shortBssid, TFT_YELLOW, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
     }
 
-    // Badge FINAL (V6.1 Mirror)
+    // Badge FINAL (V6.3 Mirror)
     _canvas.setTextColor(TFT_MAGENTA); 
     _canvas.setTextSize(1);
     _canvas.setCursor(_canvas.width() - 75, _canvas.height() - 8);
-    _canvas.print("V6.1-MIRROR");
+    _canvas.print("V6.3-MIRROR");
 }
 
-uint16_t DashboardRenderer::_getColorForState(QualityAnalyzer::HealthState state) {
+uint16_t DashboardRenderer::_getColorForState(HealthState state) {
     switch (state) {
-        case QualityAnalyzer::EXCELLENT: return 0x07E0; // TFT_GREEN
-        case QualityAnalyzer::GOOD:      return 0x07FF; // TFT_CYAN
-        case QualityAnalyzer::DEGRADED:  return 0xFFE0; // TFT_YELLOW
-        case QualityAnalyzer::CRITICAL:  return 0xF800; // TFT_RED
-        default:                         return 0xFFFF; // TFT_WHITE
+        case EXCELLENT: return 0x07E0; // TFT_GREEN
+        case GOOD:      return 0x07FF; // TFT_CYAN
+        case DEGRADED:  return 0xFFE0; // TFT_YELLOW
+        case CRITICAL:  return 0xF800; // TFT_RED
+        default:        return 0xFFFF; // TFT_WHITE
     }
 }
 

@@ -17,7 +17,7 @@ FileLogger logger;
 #define LED_PIN 5
 unsigned long lastUIUpdate = 0;
 unsigned long lastHistorySample = 0;
-QualityAnalyzer::HealthState lastState = QualityAnalyzer::CRITICAL;
+HealthState lastState = CRITICAL;
 
 void setup() {
     Serial.begin(115200);
