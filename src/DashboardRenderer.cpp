@@ -1,5 +1,8 @@
 #include "DashboardRenderer.h"
 
+DashboardRenderer::DashboardRenderer() : _tft(), _canvas(&_tft) {
+}
+
 DashboardRenderer::LGFX_C6::LGFX_C6(void) {
     {
         auto cfg = _bus_instance.config();
