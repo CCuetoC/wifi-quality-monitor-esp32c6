@@ -39,15 +39,15 @@ void setup() {
     
     network.begin(WIFI_SSID, WIFI_PASS);
 
-    // V5.5: Limpieza forzada de histórico si cambia la versión
+    // V6.0: Limpieza forzada de histórico si cambia la versión
     Preferences pver;
     pver.begin("fver", false);
-    if (pver.getInt("v", 0) != 55) {
-        Serial.println("[!] V5.5: VERSION CHANGE DETECTED - WIPING FS...");
+    if (pver.getInt("v", 0) != 60) {
+        Serial.println("[!] V6.0: VERSION CHANGE DETECTED - WIPING FS...");
         LittleFS.begin(); 
         LittleFS.remove("/trend.bin");
         LittleFS.remove("/ram.bin");
-        pver.putInt("v", 55);
+        pver.putInt("v", 60);
     }
     pver.end();
     

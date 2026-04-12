@@ -257,11 +257,11 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
         drawBox(1, 1, "AUDIT (BSSID)", shortBssid, TFT_YELLOW, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
     }
 
-    // Badge FINAL
-    _canvas.setTextColor(0x3186); // Gris oscuro
+    // Badge FINAL (V6.0 Mirror)
+    _canvas.setTextColor(TFT_MAGENTA); 
     _canvas.setTextSize(1);
-    _canvas.setCursor(_canvas.width() - 55, _canvas.height() - 8);
-    _canvas.print("V5.5-FINAL");
+    _canvas.setCursor(_canvas.width() - 75, _canvas.height() - 8);
+    _canvas.print("V6.0-MIRROR");
 }
 
 uint16_t DashboardRenderer::_getColorForState(QualityAnalyzer::HealthState state) {
