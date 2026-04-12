@@ -40,7 +40,19 @@ void NetworkService::begin(const char* ssid, const char* pass) {
     _prefs.begin("net_stats", true);
     String s = _prefs.getString("w_ssid", ssid), p = _prefs.getString("w_pass", pass);
     _prefs.end();
-    WiFi.mode(WIFI_STA); WiFi.setSleep(false); // V4.6: Máxima alerta (No Sleep)
+    WiFi.mode(WIFI_STA); 
+    WiFi.setSleep(false);
+    
+    // V6.3: Migración forzada para evitar colisión con el "fantasma" .36
+    IPAddress local_IP(192, 168, 1, 40);
+    IPAddress gateway(192, 168, 1, 1);
+    IPAddress subnet(255, 255, 255, 0);
+    IPAddress primaryDNS(8, 8, 8, 8);
+    
+    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS)) {
+        Serial.println("[!] V6.3: FAILED TO CONFIGURE STATIC IP");
+    }
+
     WiFi.begin(s.c_str(), p.c_str());
     _startTime = millis();
 }

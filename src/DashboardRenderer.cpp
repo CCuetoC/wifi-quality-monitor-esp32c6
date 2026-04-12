@@ -257,11 +257,11 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkData& net, const HealthMet
         drawBox(1, 1, "AUDIT (BSSID)", shortBssid, TFT_YELLOW, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
     }
 
-    // Badge FINAL (V6.3 Mirror)
+    // Badge FINAL (V6.3 Migración)
     _canvas.setTextColor(TFT_MAGENTA); 
     _canvas.setTextSize(1);
-    _canvas.setCursor(_canvas.width() - 75, _canvas.height() - 8);
-    _canvas.print("V6.3-MIRROR");
+    _canvas.setCursor(_canvas.width() - 85, _canvas.height() - 8);
+    _canvas.print("V6.3-MIGRATED-40");
 }
 
 uint16_t DashboardRenderer::_getColorForState(HealthState state) {
