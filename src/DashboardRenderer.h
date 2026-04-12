@@ -10,7 +10,10 @@
 
 class DashboardRenderer {
 public:
-    DashboardRenderer();
+    DashboardRenderer() : _tft(), _canvas(&_tft) {
+        _canvas.setColorDepth(16);
+        _canvas.createSprite(240, 240);
+    }
     void begin();
     void serveScreenshot(WebServer& server); 
     void drawBootScreen(const char* state);
