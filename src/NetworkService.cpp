@@ -123,6 +123,10 @@ void NetworkService::_setupWebServer(FileLogger& logger, DashboardRenderer& rend
     _server->on("/logs", [this, &logger]() { _handleLogs(logger); });
     _server->on("/config", [this]() { _handleConfig(); });
     _server->on("/capture.bmp", [this, &renderer]() { renderer.serveScreenshot(*_server); });
+    _server->on("/debug", [this]() {
+        String info = "{\"v\":\"6.2-MIRROR\",\"build\":\"" __DATE__ " " __TIME__ "\"}";
+        _server->send(200, "application/json", info);
+    });
     _server->on("/status", [this]() {
         uint32_t fh = ESP.getFreeHeap();
         String j = "{\"u\":\"" + getUptimeString() + "\",\"r\":" + String(WiFi.RSSI()) + ",\"pg\":" + String(_lastPingGW) + ",\"pn\":" + String(_lastPingInternet) + ",\"qs\":" + String(_lastScore) + ",\"re\":" + String(_reconnectCount) + ",\"h\":" + String(fh/1024) + "}";
