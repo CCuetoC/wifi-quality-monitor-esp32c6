@@ -159,7 +159,6 @@ void NetworkService::_handleLogs(FileLogger& logger) {
     File f = LittleFS.open("/log.txt", FILE_READ); if (f.size() > 5000) f.seek(f.size() - 5000); String data = f.readString(); f.close();
     int lineStart = data.indexOf('\n') + 1; String buf[100]; int count = 0;
     while(lineStart < data.length() && count < 100) { 
-) { // V4.1: Límite estricto 140 eventos
         int next = data.indexOf('\n', lineStart); if (next == -1) next = data.length(); 
         buf[count++] = data.substring(lineStart, next); lineStart = next + 1; 
     }
