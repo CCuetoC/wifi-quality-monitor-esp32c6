@@ -94,16 +94,16 @@ void DashboardRenderer::_drawLagChart(const int* history, int size, int circular
     _canvas.drawFastHLine(x, g100, w, 0x10A2);
     _canvas.drawFastHLine(x, g500, w, 0x5000);
     
-    // Escalas internas (Lado Izquierdo) para evitar cortes
+    // ESCALA LIBRE: Números en x+2, barras inician en x+26
     _canvas.setTextSize(1);
-    _canvas.setTextColor(0x52AA); 
+    _canvas.setTextColor(0x7BEF); // Gris suave
     _canvas.setCursor(x + 2, g20 - 7); _canvas.print("20");
     _canvas.setCursor(x + 2, g100 - 7); _canvas.print("100");
     _canvas.setCursor(x + 2, g500 - 7); _canvas.print("500");
 
-    // Dibujo de Radar (4px barra + 2px gap = 6px/punto)
     int barW = 4;
     int gap = 2;
+    int startOffset = 26; // Despeje para la escala
     for (int i = 0; i < size; i++) {
         int idx = (circularIndex + i) % size;
         int val = history[idx];
@@ -114,11 +114,11 @@ void DashboardRenderer::_drawLagChart(const int* history, int size, int circular
         if (val > 100) color = TFT_YELLOW;
         if (val > 500 || val == -1) color = TFT_RED;
         
-        _canvas.fillRect(x + (i * (barW + gap)), y + h - barH, barW, barH, color);
+        _canvas.fillRect(x + startOffset + (i * (barW + gap)), y + h - barH, barW, barH, color);
     }
     
     _canvas.setTextColor(TFT_WHITE);
-    _canvas.setCursor(x + 5, y + 2);
+    _canvas.setCursor(x + 30, y + 2);
     _canvas.print("WAN LATENCY (ms) - 2.5m HISTORY");
 }
 
@@ -133,12 +133,12 @@ int DashboardRenderer::_mapLatencyToY(int ms, int h) {
 }
 
 void DashboardRenderer::_drawHealthBar(int score, QualityAnalyzer::HealthState state) {
-    int x = 10, y = 85, w = 260, h = 14; // Centrado y más ancho
-    _canvas.drawRect(x, y, w, h, TFT_DARKGREY);
+    int xArr = 10, yArr = 85, wArr = 240, hArr = 14; 
+    _canvas.drawRect(xArr, yArr, wArr, hArr, 0x7BEF); // Gris claro para el marco
     
     int segments = 20;
     int filledSegments = (score * segments) / 100;
-    int segW = (w - 4) / segments;
+    int segW = (wArr - 4) / segments;
     
     for (int i = 0; i < segments; i++) {
         uint16_t segColor;
@@ -148,25 +148,25 @@ void DashboardRenderer::_drawHealthBar(int score, QualityAnalyzer::HealthState s
         else segColor = 0x07E0;
         
         bool isActive = (i < filledSegments);
-        uint16_t finalColor = isActive ? segColor : 0x18C3; 
-        _canvas.fillRect(x + 2 + (i * segW), y + 2, segW - 1, h - 4, finalColor);
+        uint16_t finalColor = isActive ? segColor : 0x10A2; // Azul muy oscuro apagado
+        _canvas.fillRect(xArr + 2 + (i * segW), yArr + 2, segW - 1, hArr - 4, finalColor);
     }
     
-    // Porcentaje Integrado (Encima de la etiqueta para limpiar bordes)
+    // Porcentaje nítido junto a la barra
     _canvas.setTextSize(2);
     _canvas.setTextColor(TFT_WHITE);
-    _canvas.setCursor(x + w + 8, y - 2);
+    _canvas.setCursor(xArr + wArr + 10, yArr - 1);
     _canvas.printf("%d%%", score);
     
     _canvas.setTextSize(1);
-    _canvas.setTextColor(TFT_DARKGREY);
-    _canvas.setCursor(x, y + 18);
-    _canvas.print("OVERALL QUALITY INDEX (50 SAMPLES TREND)");
+    _canvas.setTextColor(0x52AA);
+    _canvas.setCursor(xArr, yArr + 18);
+    _canvas.print("OVERALL QUALITY INDEX (46 SAMPLES TREND)");
 }
 
 void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net, const QualityAnalyzer::HealthMetrics& health, String uptime, float disconnectRate) {
-    int startX = 10, startY = 115; // Ajuste a margen 10
-    int boxW = 145, boxH = 26; // Cajas ligeramente más anchas
+    int startX = 10, startY = 118; // Bajado ligeramente
+    int boxW = 145, boxH = 28; // Cajas más altas
     
     auto drawBox = [&](int col, int row, const char* label, String val1, uint16_t col1, String val2, uint16_t col2) {
         int bx = startX + (col * (boxW + 10));
@@ -176,9 +176,10 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
         _canvas.setTextColor(0x7BEF); 
         _canvas.setCursor(bx + 5, by + 4); _canvas.print(label);
         
-        _canvas.setCursor(bx + 5, by + 14); 
+        // Centrado vertical (+17px)
+        _canvas.setCursor(bx + 5, by + 17); 
         _canvas.setTextColor(col1); _canvas.print(val1);
-        _canvas.setCursor(bx + boxW/2 + 5, by + 14); 
+        _canvas.setCursor(bx + boxW/2 + 10, by + 17); // Más aire horizontal
         _canvas.setTextColor(col2); _canvas.print(val2);
     };
 
@@ -191,10 +192,11 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
     uint16_t cEXT = (net.pingInternet > 50) ? TFT_RED : TFT_GREEN;
     if (net.pingInternet == -1) cEXT = TFT_RED;
 
-    // BOX 1: Phys - SNR reubicado para evitar pisotón
-    String sigSnr = "S:" + String(net.rssi) + " SNR:" + String(health.snr);
-    String chMode = "CH:" + String(net.channel) + "(" + net.phyMode + ")";
-    drawBox(0, 0, "PHYS (Signal/Link)", sigSnr, cS, chMode, TFT_CYAN);
+    // BOX 1: Phys - Separación mejorada
+    String sig = "S:" + String(net.rssi);
+    String ch = "CH:" + String(net.channel) + " (" + net.phyMode + ")";
+    drawBox(0, 0, "PHYS (Signal/Link)", sig, cS, ch, TFT_CYAN);
+    _canvas.setTextColor(cSNR); _canvas.setCursor(startX + 120, startY + 4); _canvas.printf("%d", health.snr);
 
     // BOX 2: Net
     drawBox(1, 0, "QUAL (Loss/Jit)", "L:" + String(health.packetLoss) + "%", cL, "J:" + String(health.jitter) + "ms", cJ);
@@ -202,7 +204,7 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
     // BOX 3: Resp
     drawBox(0, 1, "RESP (Local/Ext)", "GW:" + String(net.pingGW), cGW, "EXT:" + String(net.pingInternet), cEXT);
     
-    // BOX 4: Audit
+    // BOX 4: Audit - Posición Badge FINAL
     bool toggle = (millis() % 10000 < 5000);
     if (toggle) {
         drawBox(1, 1, "AUDIT (Uptime)", uptime.substring(0,8), TFT_WHITE, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
@@ -210,6 +212,12 @@ void DashboardRenderer::_drawMetricsGrid(const NetworkService::NetworkData& net,
         String shortBssid = net.bssid.substring(9); 
         drawBox(1, 1, "AUDIT (BSSID)", shortBssid, TFT_YELLOW, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
     }
+
+    // Badge FINAL
+    _canvas.setTextColor(0x3186); // Gris oscuro
+    _canvas.setTextSize(1);
+    _canvas.setCursor(_canvas.width() - 55, _canvas.height() - 8);
+    _canvas.print("V5.5-FINAL");
 }
 
 uint16_t DashboardRenderer::_getColorForState(QualityAnalyzer::HealthState state) {

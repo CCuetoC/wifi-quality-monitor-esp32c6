@@ -28,7 +28,7 @@ public:
         float linkEfficiency; // Tasa de éxito de transmisión (0.0 a 1.0)
     };
 
-    static const int HISTORY_SIZE = 50;
+    static const int HISTORY_SIZE = 46;
     
     HealthMetrics calculateHealth(int rssi, int pingMs);
     void addSample(int score);
