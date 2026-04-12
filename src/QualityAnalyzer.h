@@ -7,6 +7,14 @@
 class QualityAnalyzer {
 public:
     static const char* getStateName(HealthState state) {
+        switch (state) {
+            case EXCELLENT: return "EXCELLENT";
+            case GOOD:      return "GOOD";
+            case DEGRADED:  return "DEGRADED";
+            case CRITICAL:  return "CRITICAL";
+            default:        return "UNKNOWN";
+        }
+    }
 
     static const int HISTORY_SIZE = 46;
     
