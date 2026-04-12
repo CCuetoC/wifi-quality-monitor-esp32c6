@@ -38,6 +38,18 @@ void setup() {
     renderer.drawBootScreen("INDUSTRIAL V4.0...");
     
     network.begin(WIFI_SSID, WIFI_PASS);
+
+    // V5.3: Limpieza forzada de histórico si cambia la versión
+    Preferences pver;
+    pver.begin("fver", false);
+    if (pver.getInt("v", 0) != 53) {
+        Serial.println("[!] V5.3: VERSION CHANGE DETECTED - WIPING FS...");
+        LittleFS.begin(); // Asegurar FS para el borrado
+        LittleFS.remove("/trend.bin");
+        LittleFS.remove("/ram.bin");
+        pver.putInt("v", 53);
+    }
+    pver.end();
     
     // El Watchdog se activa al final del setup
     esp_task_wdt_add(NULL); 

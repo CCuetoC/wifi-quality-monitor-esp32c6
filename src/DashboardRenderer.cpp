@@ -71,6 +71,12 @@ void DashboardRenderer::drawDashboard(const NetworkService::NetworkData& net,
     // ZONA 3: Metrics Grid (Abajo)
     _drawMetricsGrid(net, health, uptime, disconnectRate);
     
+    // Firma de Versión (Validación Force Deploy)
+    _canvas.setTextColor(0x52AA); // Gris
+    _canvas.setTextSize(1);
+    _canvas.setCursor(_canvas.width() - 48, _canvas.height() - 8);
+    _canvas.print("V5.3-DEM");
+    
     _canvas.pushSprite(&_tft, 0, 0);
 }
 
