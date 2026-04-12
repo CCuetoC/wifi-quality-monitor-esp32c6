@@ -84,7 +84,8 @@ void NetworkService::update(FileLogger& logger, DashboardRenderer& renderer) {
     if (hasTime && _bootPhase >= 3) {
         logger.checkStartupReason();
         logger.estimateLastPowerOff();
-        logger.sendHeartbeat(WiFi.RSSI(), WiFi.localIP().toString());
+        logger.logEvent("HEARTBEAT-TURBO", "ALIVE | RSSI: " + String(WiFi.RSSI()) + " | IP: " + WiFi.localIP().toString());
+        _lastHeartbeat = millis();
     }
 
     bool c = (WiFi.status() == WL_CONNECTED);
