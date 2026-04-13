@@ -22,7 +22,7 @@ HealthState lastState = CRITICAL;
 
 void setup() {
     Serial.begin(115200);
-    delay(1000);
+    for(int i=0; i<10 && !Serial; i++) delay(100); 
     Serial.println("\n\n######################################");
     Serial.println(">>>   V6.3-MIGRATED BOOT SUCCESS   <<<");
     Serial.println("######################################\n");
