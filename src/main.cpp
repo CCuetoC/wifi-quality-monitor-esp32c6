@@ -21,7 +21,9 @@ unsigned long lastHistorySample = 0;
 HealthState lastState = CRITICAL;
 
 void setup() {
-    Serial.begin(115200);
+    #if !defined(ARDUINO_USB_CDC_ON_BOOT) || ARDUINO_USB_CDC_ON_BOOT != 1
+        Serial.begin(115200);
+    #endif
     for(int i=0; i<10 && !Serial; i++) delay(100); 
     Serial.println("\n\n######################################");
     Serial.println(">>>   V6.3-MIGRATED BOOT SUCCESS   <<<");
