@@ -24,17 +24,17 @@ public:
     String getUptimeString();
     int getReconnectCount();
     void setQuality(int score, int jitter, int loss, int snr, float efficiency);
+    void setPingResults(int gw, int internet) { _lastPingGW = gw; _lastPingInternet = internet; }
     int getBootPhase() { return _bootPhase; }
     bool consumeConnectionTrigger() { bool t = _connectionTrigger; _connectionTrigger = false; return t; }
 
 private:
+    int _lastPingGW = -1;
+    int _lastPingInternet = -1;
     unsigned long _bootTime = 0;
     unsigned long _lastHeartbeat = 0;
     unsigned long _startTime = 0;
     int _reconnectCount = 0;
-    unsigned long _lastPingTime = 0;
-    int _lastPingGW = -1;
-    int _lastPingInternet = -1;
     
     unsigned long _lastReconnectAttempt = 0;
     unsigned long _lastConnectedTime = 0;
@@ -42,7 +42,7 @@ private:
     
     bool _isConfigMode = false;
     bool _connectionTrigger = false;
-    int _bootPhase = 0; // 0: WiFi Only, 1: FS, 2: Web, 3: Full
+    int _bootPhase = 0; 
     int _gmtOffset = -5;
     int _lastScore = 0;
     int _lastJitter = 0;
@@ -57,7 +57,6 @@ private:
     WebServer* _server = nullptr;
     DNSServer* _dnsServer = nullptr;
     
-    void _performPing();
     void _setupWebServer(FileLogger& logger, DashboardRenderer& renderer);
     void _handleRoot(FileLogger& logger);
     void _handleLogs(FileLogger& logger);

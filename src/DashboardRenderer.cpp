@@ -106,64 +106,65 @@ void DashboardRenderer::drawDashboard(const NetworkData& net,
                                String uptime, int reconnects, float disconnectRate) {
     _canvas.fillScreen(TFT_BLACK);
     
-    // ZONA 1: Lag Spikes Trend (Arriba)
-    _drawLagChart(net, history, historySize, circularIndex);
+    uint16_t stateColor = _getColorForState(health.state);
     
-    // ZONA 2: Overall Quality Bar (Centro)
-    _drawHealthBar(health.score, health.state);
-    
-    // ZONA 3: Metrics Grid (Abajo)
-    _drawMetricsGrid(net, health, uptime, disconnectRate);
-    
-    // Firma de Versión (v6.3 Mirror)
-    _canvas.setTextColor(0x52AA); // Gris
+    const int margin = 10;
+    const int safe_w = 320 - (2 * margin);
+    const int safe_h = 172 - (2 * margin);
+
+    // 1. Borde de Alerta Glow (Marco de Referencia Interno)
+    _canvas.drawRect(margin, margin, safe_w, safe_h, stateColor);
+    _canvas.drawRect(margin + 1, margin + 1, safe_w - 2, safe_h - 2, stateColor);
+
+    // 2. Cabecera (Sincronizada con Mockup)
     _canvas.setTextSize(1);
-    _canvas.setCursor(_canvas.width() - 48, _canvas.height() - 8);
-    _canvas.print("V6.3");
+    _canvas.setTextColor(TFT_CYAN, TFT_BLACK);
+    _canvas.setTextDatum(TL_DATUM);
+    _canvas.setCursor(margin + 6, margin + 5); 
+    _canvas.print("SSID: "); _canvas.setTextColor(TFT_WHITE); _canvas.print(WiFi.SSID());
+    
+    _canvas.setTextColor(0x7BEF); // Gris tenue
+    _canvas.setTextDatum(TR_DATUM);
+    _canvas.drawString("IP: 192.168.1.40", margin + safe_w - 6, margin + 5);
+
+    // 3. Componentes Visuales
+    _drawLagChart(net, history, historySize, circularIndex);
+    _drawHealthBar(health.score, health.state);
+    _drawMetricsGrid(net, health, uptime, disconnectRate);
     
     _canvas.pushSprite(&_tft, 0, 0);
 }
 
 void DashboardRenderer::_drawLagChart(const NetworkData& net, const int* history, int size, int circularIndex) {
-    int x = 10, y = 10, w = 300, h = 65; 
+    // Coordenadas fijas para evitar solapamientos (dentro de safe_w)
+    int chartX = 18, chartY = 32, chartW = 284, chartH = 50; 
     
-    // Fondo y Guías Log-Step
-    _canvas.drawRect(x, y, w, h, 0x18C3); 
+    _canvas.setTextDatum(TL_DATUM);
+    _canvas.setTextColor(0x7BEF);
+    _canvas.drawString("LATENCY (ms): ", chartX + 4, chartY - 9);
+    _canvas.setTextColor(TFT_WHITE);
+    _canvas.drawString(String((int)net.pingInternet), chartX + 85, chartY - 9);
     
-    int g20 = y + h - _mapLatencyToY(20, h);
-    int g100 = y + h - _mapLatencyToY(100, h);
-    int g500 = y + h - _mapLatencyToY(500, h);
+    _canvas.drawRect(chartX, chartY, chartW, chartH, 0x2104); 
     
-    _canvas.drawFastHLine(x, g20, w, 0x0100); 
-    _canvas.drawFastHLine(x, g100, w, 0x10A2);
-    _canvas.drawFastHLine(x, g500, w, 0x5000);
-    
-    // ESCALA LIBRE: Números en x+2, barras inician en x+26
-    _canvas.setTextSize(1);
-    _canvas.setTextColor(0x7BEF); // Gris suave
-    _canvas.setCursor(x + 2, g20 - 7); _canvas.print("20");
-    _canvas.setCursor(x + 2, g100 - 7); _canvas.print("100");
-    _canvas.setCursor(x + 2, g500 - 7); _canvas.print("500");
-
+    const int n_bars = 46;
     int barW = 4;
     int gap = 2;
-    int startOffset = 26; // Despeje para la escala
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < n_bars; i++) {
         int idx = (circularIndex + i) % size;
-        int val = history[idx];
+        int val = (idx < size) ? history[idx] : 0;
         if (val <= 0) continue; 
 
-        int barH = _mapLatencyToY(val, h);
-        uint16_t color = 0x07FF; 
-        if (val > 100) color = TFT_YELLOW;
-        if (val > 500 || val == -1) color = TFT_RED;
+        int h = map(val, 0, 500, 2, chartH - 4);
+        if (h > chartH - 4) h = chartH - 4;
         
-        _canvas.fillRect(x + startOffset + (i * (barW + gap)), y + h - barH, barW, barH, color);
+        uint16_t color = (val > 100) ? ((val > 500) ? TFT_RED : TFT_YELLOW) : 0x07FF;
+        int bx = chartX + 3 + (i * (barW + gap));
+        if (bx + barW > chartX + chartW - 2) break;
+
+        _canvas.fillRect(bx, chartY + chartH - h - 1, barW, h, color);
+        _canvas.drawFastHLine(bx, chartY + chartH - h - 1, barW, TFT_WHITE);
     }
-    
-    _canvas.setTextColor(TFT_WHITE);
-    _canvas.setCursor(x + 30, y + 2);
-    _canvas.printf("LATENCY (ms) - IP: %s", net.ip.c_str());
 }
 
 int DashboardRenderer::_mapLatencyToY(int ms, int h) {
@@ -177,91 +178,46 @@ int DashboardRenderer::_mapLatencyToY(int ms, int h) {
 }
 
 void DashboardRenderer::_drawHealthBar(int score, HealthState lastState) {
-    int xArr = 10, yArr = 85, wArr = 240, hArr = 14; 
-    _canvas.drawRect(xArr, yArr, wArr, hArr, 0x7BEF); // Gris claro para el marco
+    int bx = 18, by = 90, bw = 250, bh = 8;
+    _canvas.drawRect(bx, by, bw, bh, 0x2104);
     
-    int segments = 20;
-    int filledSegments = (score * segments) / 100;
-    int segW = (wArr - 4) / segments;
+    int barW = (score * (bw - 4)) / 100;
+    _canvas.fillRect(bx + 2, by + 2, barW, bh - 4, _getColorForState(lastState));
     
-    for (int i = 0; i < segments; i++) {
-        uint16_t segColor;
-        if (i < 5) segColor = TFT_RED;
-        else if (i < 10) segColor = TFT_ORANGE;
-        else if (i < 15) segColor = 0xFFE0;
-        else segColor = 0x07E0;
-        
-        bool isActive = (i < filledSegments);
-        uint16_t finalColor = isActive ? segColor : 0x10A2; // Azul muy oscuro apagado
-        _canvas.fillRect(xArr + 2 + (i * segW), yArr + 2, segW - 1, hArr - 4, finalColor);
-    }
-    
-    // Porcentaje nítido junto a la barra
-    _canvas.setTextSize(2);
+    _canvas.setTextDatum(TR_DATUM);
     _canvas.setTextColor(TFT_WHITE);
-    _canvas.setCursor(xArr + wArr + 10, yArr - 1);
-    _canvas.printf("%d%%", score);
-    
-    _canvas.setTextSize(1);
-    _canvas.setTextColor(0x52AA);
-    _canvas.setCursor(xArr, yArr + 18);
-    _canvas.print("OVERALL QUALITY INDEX (46 SAMPLES TREND)");
+    _canvas.drawString(String(score) + "%", 304, by - 2);
 }
 
 void DashboardRenderer::_drawMetricsGrid(const NetworkData& net, const HealthMetrics& health, String uptime, float disconnectRate) {
-    int startX = 10, startY = 118; // Bajado ligeramente
-    int boxW = 145, boxH = 28; // Cajas más altas
-    
-    auto drawBox = [&](int col, int row, const char* label, String val1, uint16_t col1, String val2, uint16_t col2) {
-        int bx = startX + (col * (boxW + 10));
-        int by = startY + (row * (boxH + 5));
-        _canvas.drawRect(bx, by, boxW, boxH, 0x2104); 
-        _canvas.setTextSize(1);
-        _canvas.setTextColor(0x7BEF); 
-        _canvas.setCursor(bx + 5, by + 4); _canvas.print(label);
+    int startX = 18, startY = 105;
+    int boxW = 141, boxH = 24;
+
+    auto drawMetric = [&](int col, int row, const char* label, String val, uint16_t color) {
+        int x = startX + (col * (boxW + 2));
+        int y = startY + (row * (boxH + 2));
+        _canvas.drawRect(x, y, boxW, boxH, 0x1082);
         
-        // Centrado vertical (+17px)
-        _canvas.setCursor(bx + 5, by + 17); 
-        _canvas.setTextColor(col1); _canvas.print(val1);
-        _canvas.setCursor(bx + boxW/2 + 10, by + 17); // Más aire horizontal
-        _canvas.setTextColor(col2); _canvas.print(val2);
+        _canvas.setTextDatum(TL_DATUM);
+        _canvas.setTextColor(0x7BEF);
+        _canvas.drawString(label, x + 4, y + 8);
+        
+        _canvas.setTextDatum(TR_DATUM);
+        _canvas.setTextColor(color);
+        _canvas.drawString(val, x + boxW - 4, y + 8);
     };
 
-    uint16_t cS = (net.rssi < -67) ? TFT_ORANGE : TFT_WHITE;
-    uint16_t cSNR = (health.snr < 25) ? TFT_RED : TFT_CYAN;
-    uint16_t cL = (health.packetLoss > 1) ? TFT_RED : TFT_WHITE;
-    uint16_t cJ = (health.jitter > 10) ? TFT_ORANGE : TFT_WHITE;
-    uint16_t cGW = (net.pingGW > 50) ? TFT_RED : TFT_GREEN;
-    if (net.pingGW == -1) cGW = TFT_RED;
-    uint16_t cEXT = (net.pingInternet > 50) ? TFT_RED : TFT_GREEN;
-    if (net.pingInternet == -1) cEXT = TFT_RED;
-
-    // BOX 1: Phys - Separación mejorada
-    String sig = "S:" + String(net.rssi);
-    String ch = "CH:" + String(net.channel) + " (" + net.phyMode + ")";
-    drawBox(0, 0, "PHYS (Signal/Link)", sig, cS, ch, TFT_CYAN);
-    _canvas.setTextColor(cSNR); _canvas.setCursor(startX + 120, startY + 4); _canvas.printf("%d", health.snr);
-
-    // BOX 2: Net
-    drawBox(1, 0, "QUAL (Loss/Jit)", "L:" + String(health.packetLoss) + "%", cL, "J:" + String(health.jitter) + "ms", cJ);
+    drawMetric(0, 0, "SIGNAL", String(net.rssi) + " dBm", (net.rssi < -67 ? TFT_ORANGE : TFT_GREEN));
+    drawMetric(1, 0, "CHAN", String(net.channel) + " (AX)", TFT_CYAN);
+    drawMetric(0, 1, "GW/EXT", String(net.pingGW) + "/" + String(net.pingInternet), TFT_WHITE);
     
-    // BOX 3: Resp
-    drawBox(0, 1, "RESP (Local/Ext)", "GW:" + String(net.pingGW), cGW, "EXT:" + String(net.pingInternet), cEXT);
-    
-    // BOX 4: Audit - Posición Badge FINAL
     bool toggle = (millis() % 10000 < 5000);
-    if (toggle) {
-        drawBox(1, 1, "AUDIT (Uptime)", uptime.substring(0,8), TFT_WHITE, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
-    } else {
-        String shortBssid = net.bssid.substring(9); 
-        drawBox(1, 1, "AUDIT (BSSID)", shortBssid, TFT_YELLOW, "DR:" + String(disconnectRate, 1), TFT_MAGENTA);
-    }
+    if (toggle) drawMetric(1, 1, "UPTIME", uptime.substring(0,8), TFT_WHITE);
+    else drawMetric(1, 1, "BSSID", net.bssid.substring(9), TFT_YELLOW);
 
-    // Badge FINAL (V6.3 Migración)
-    _canvas.setTextColor(TFT_MAGENTA); 
-    _canvas.setTextSize(1);
-    _canvas.setCursor(_canvas.width() - 85, _canvas.height() - 8);
-    _canvas.print("V6.3-MIGRATED-40");
+    _canvas.setTextDatum(BR_DATUM);
+    _canvas.setTextColor(0x4208);
+    _canvas.drawString("v6.6.5", 320 - 12, 172 - 12);
 }
 
 uint16_t DashboardRenderer::_getColorForState(HealthState state) {

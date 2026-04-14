@@ -12,7 +12,7 @@ class DashboardRenderer {
 public:
     DashboardRenderer() : _tft(), _canvas(&_tft) {
         _canvas.setColorDepth(16);
-        _canvas.createSprite(240, 240);
+        _canvas.createSprite(320, 172);
     }
     void begin();
     void serveScreenshot(WebServer& server); 

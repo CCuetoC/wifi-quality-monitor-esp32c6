@@ -5,7 +5,17 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 
-NetworkService::NetworkService() {}
+NetworkService::NetworkService() {
+    _lastPingGW = 0;
+    _lastPingInternet = 0;
+    _reconnectCount = 0;
+    _bootPhase = 0;
+    _lastScore = 0;
+    _lastJitter = 0;
+    _lastPacketLoss = 0;
+    _lastSNR = 0;
+    _lastLinkEfficiency = 0.0f;
+}
 
 // CSS V4.0 - MASTERPIECE INDUSTRIAL
 String getCommonCSS() {
@@ -94,7 +104,6 @@ void NetworkService::update(FileLogger& logger, DashboardRenderer& renderer) {
         if (!_lastConnectedTime || (_lastConnectedTime == 0 && c)) _connectionTrigger = true;
         _lastConnectedTime = millis();
         if (_isConfigMode) { WiFi.softAPdisconnect(true); if (_dnsServer) _dnsServer->stop(); _isConfigMode = false; }
-        if (_bootPhase >= 1 && (millis() - _lastPingTime > 3000)) { _lastPingTime = millis(); _performPing(); }
         
         // V5.1: Captura de Auditoría (BSSID y Protocolo) cada 10s
         if (millis() - _lastExtraUpdate >= 10000) {
@@ -118,21 +127,7 @@ void NetworkService::update(FileLogger& logger, DashboardRenderer& renderer) {
     }
 }
 
-void NetworkService::_performPing() {
-    IPAddress gw = WiFi.gatewayIP();
-    
-    // V4.8: Enfoque Maestro - Solo Google Hostname para veracidad absoluta
-    bool gwOk = Ping.ping(gw, 2);
-    _lastPingGW = gwOk ? Ping.averageTime() : -1;
-    
-    delay(100); yield(); // Limpieza de aire
-    
-    bool extOk = Ping.ping("www.google.com", 2);
-    _lastPingInternet = extOk ? Ping.averageTime() : -1;
-    
-    Serial.printf("[DIAG] GW:%s (%dms) | GOOGLE:%s (%dms)\n", 
-                  gwOk?"OK":"FAIL", _lastPingGW, extOk?"OK":"FAIL", _lastPingInternet);
-}
+// V4.8: Enfoque Maestro - Solo Google Hostname para veracidad absoluta
 
 void NetworkService::_setupWebServer(FileLogger& logger, DashboardRenderer& renderer) {
     _server->on("/", [this, &logger]() { _handleRoot(logger); });
