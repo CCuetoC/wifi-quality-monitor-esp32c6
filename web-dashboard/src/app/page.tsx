@@ -50,20 +50,21 @@ function scoreColor(score: number) {
 }
 
 /* ── Sparkline Interactiva ── */
-function MiniSparkline({ data, color = '#00E5FF' }: { data: number[]; color?: string }) {
+function MiniSparkline({ data, color = '#00E5FF' }: { data: {v: number, t: string}[]; color?: string }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const W = 400;
   const H = 40;
 
   const points = useMemo(() => {
-    const min = Math.min(...data, 0);
-    const max = Math.max(...data, 100);
+    const values = data.map(d => d.v);
+    const min = Math.min(...values, 0);
+    const max = Math.max(...values, 100);
     const range = max - min || 1;
-    return data.map((v, i) => {
+    return data.map((d, i) => {
       const x = (i / (data.length - 1)) * W;
-      const y = H - ((v - min) / range) * (H - 4) - 2;
-      return { x, y, v };
+      const y = H - ((d.v - min) / range) * (H - 4) - 2;
+      return { x, y, v: d.v, t: d.t };
     });
   }, [data]);
 
@@ -107,24 +108,35 @@ function MiniSparkline({ data, color = '#00E5FF' }: { data: number[]; color?: st
         )}
       </svg>
       
-      {/* Tooltip Industrial Refinado */}
+      {/* Tooltip Industrial Refinado con Tiempo */}
       {hoverIndex !== null && points[hoverIndex] && (
         <div style={{
           position: 'absolute',
           left: `${(points[hoverIndex].x / W) * 100}%`,
-          top: -24,
+          top: -34,
           transform: 'translateX(-50%)',
-          backgroundColor: '#111',
+          backgroundColor: '#050505',
           border: '1px solid #333',
-          padding: '2px 6px',
+          padding: '4px 8px',
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: '10px',
           color: color,
           pointerEvents: 'none',
           whiteSpace: 'nowrap',
-          zIndex: 10
+          zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
         }}>
-          VAL: {points[hoverIndex].v}%
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+            <span style={{ color: '#555' }}>TIME:</span>
+            <span>{points[hoverIndex].t}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+            <span style={{ color: '#555' }}>QUAL:</span>
+            <span>{points[hoverIndex].v}%</span>
+          </div>
         </div>
       )}
     </div>
@@ -181,7 +193,7 @@ const MONO = "'JetBrains Mono', monospace";
 /* ── Dashboard ── */
 export default function Dashboard() {
   const [data, setData] = useState<TelemetryData | null>(null);
-  const [history, setHistory] = useState<number[]>(new Array(40).fill(0));
+  const [history, setHistory] = useState<{v: number, t: string}[]>(new Array(40).fill({v: 0, t: '--:--:--'}));
   const [isLive, setIsLive] = useState(false);
 
   /* ════════════════════════════════════════════════════════
@@ -193,8 +205,9 @@ export default function Dashboard() {
         { event: 'UPDATE', schema: 'public', table: 'device_state', filter: 'id=eq.1' },
         (payload) => {
           const newData = payload.new.payload as TelemetryData;
+          const timeStr = new Date().toLocaleTimeString('es-PE', { hour12: false });
           setData(newData);
-          setHistory(prev => [...prev.slice(1), newData.score]);
+          setHistory(prev => [...prev.slice(1), { v: newData.score, t: timeStr }]);
           setIsLive(true);
         }
       )
