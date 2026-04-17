@@ -49,37 +49,85 @@ function scoreColor(score: number) {
   return '#FF3D3D';
 }
 
-/* ── Sparkline ── */
+/* ── Sparkline Interactiva ── */
 function MiniSparkline({ data, color = '#00E5FF' }: { data: number[]; color?: string }) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
+  const W = 400;
+  const H = 40;
+
   const points = useMemo(() => {
-    const min = Math.min(...data);
-    const max = Math.max(...data);
+    const min = Math.min(...data, 0);
+    const max = Math.max(...data, 100);
     const range = max - min || 1;
-    const W = 400;
-    const H = 40;
     return data.map((v, i) => {
       const x = (i / (data.length - 1)) * W;
       const y = H - ((v - min) / range) * (H - 4) - 2;
-      return `${x},${y}`;
-    }).join(' ');
+      return { x, y, v };
+    });
   }, [data]);
 
+  const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * W;
+    const index = Math.round((x / W) * (data.length - 1));
+    setHoverIndex(index >= 0 && index < data.length ? index : null);
+  };
+
   return (
-    <svg
-      width="100%"
-      height={40}
-      viewBox="0 0 400 40"
-      preserveAspectRatio="none"
-      style={{ display: 'block' }}
-    >
-      <polyline
-        points={points}
-        fill="none"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinejoin="miter"
-      />
-    </svg>
+    <div style={{ position: 'relative' }}>
+      <svg
+        width="100%"
+        height={40}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoverIndex(null)}
+        style={{ display: 'block', cursor: 'crosshair' }}
+      >
+        <polyline
+          points={polylinePoints}
+          fill="none"
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinejoin="miter"
+        />
+        {hoverIndex !== null && points[hoverIndex] && (
+          <g>
+            <line 
+              x1={points[hoverIndex].x} y1="0" 
+              x2={points[hoverIndex].x} y2={H} 
+              stroke="#444" strokeWidth="1" strokeDasharray="2,2" 
+            />
+            <circle cx={points[hoverIndex].x} cy={points[hoverIndex].y} r="3" fill={color} />
+          </g>
+        )}
+      </svg>
+      
+      {/* Tooltip Industrial Refinado */}
+      {hoverIndex !== null && points[hoverIndex] && (
+        <div style={{
+          position: 'absolute',
+          left: `${(points[hoverIndex].x / W) * 100}%`,
+          top: -24,
+          transform: 'translateX(-50%)',
+          backgroundColor: '#111',
+          border: '1px solid #333',
+          padding: '2px 6px',
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '10px',
+          color: color,
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+          zIndex: 10
+        }}>
+          VAL: {points[hoverIndex].v}%
+        </div>
+      )}
+    </div>
   );
 }
 
