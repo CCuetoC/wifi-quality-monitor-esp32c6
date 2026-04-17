@@ -1,136 +1,194 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;500&display=swap');
+/* ============================================================
+   ANTIGRAVITY — WIFI QUALITY MONITOR
+   Design System: Functionalist / Modernist
+   Reemplaza: web-dashboard/src/app/globals.css
+   ============================================================ */
 
-:root {
-  /* Functional Industrial Palette */
-  --bg-deep: #050505;
-  --bg-card: #0A0A0A;
-  --border-rim: #1A1A1A;
-  
-  --text-primary: #F2F2F2;
-  --text-secondary: #71717A;
-  --text-dim: #3F3F46;
-  
-  --brand-cyan: #00E5FF;
-  --brand-emerald: #00FF94;
-  --brand-amber: #FACC15;
-  
-  --font-sans: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-* {
+/* ── Reset ── */
+*, *::before, *::after {
   box-sizing: border-box;
-  padding: 0;
   margin: 0;
-  cursor: crosshair;
+  padding: 0;
+  border-radius: 0 !important;
 }
 
 body {
-  background: var(--bg-deep);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
+  background-color: #050505;
+  color: #F0F0F0;
+  font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   overflow-x: hidden;
 }
 
-/* Grid System */
-.industrial-grid {
+/* ── Bento Grid ── */
+.bento-grid {
   display: grid;
-  grid-template-columns: repeat(24, 1fr);
-  gap: 2px;
-  background: var(--border-rim);
-  width: 100%;
-  min-height: 100vh;
-  border-bottom: 2px solid var(--border-rim);
+  grid-template-columns: repeat(12, 1fr);
+  border: 1px solid #1A1A1A;
+  border-top: none;
+  overflow: hidden;
 }
 
-.cell {
-  background: var(--bg-deep);
-  padding: 1.5rem;
-  position: relative;
-  display: flex;
-  flex-direction: column;
+/* ── Responsive Column Spans ── */
+.span-12 { grid-column: span 12; }
+.span-6  { grid-column: span 12; }
+.span-5  { grid-column: span 12; }
+.span-4  { grid-column: span 12; }
+.span-3  { grid-column: span 12; }
+.span-7  { grid-column: span 12; }
+.span-8  { grid-column: span 12; }
+.span-9  { grid-column: span 12; }
+.span-11 { grid-column: span 12; }
+
+
+@media (min-width: 640px) {
+  .span-6 { grid-column: span 6; }
 }
 
-/* Card Styling (Hard Edges) */
-.card-border {
-  border: 1px solid var(--border-rim);
-  background: var(--bg-card);
+@media (min-width: 1024px) {
+  .span-5 { grid-column: span 5; }
+  .span-4 { grid-column: span 4; }
+  .span-3 { grid-column: span 3; }
+  .span-7 { grid-column: span 7; }
+  .span-8 { grid-column: span 8; }
+  .span-9 { grid-column: span 9; }
+  .span-11 { grid-column: span 11; }
 }
 
-/* Typography Utilities */
-.text-mono { font-family: var(--font-mono); }
-.uppercase-label {
-  font-family: var(--font-mono);
+/* ── Bento Cell ── */
+.bento-cell {
+  border-right: 1px solid #1A1A1A;
+  border-bottom: 1px solid #1A1A1A;
+  padding: 24px;
+  background-color: #050505;
+}
+
+.bento-cell-dark {
+  background-color: #080808;
+}
+
+.bento-cell-terminal {
+  background-color: #030303;
+  padding: 0;
+}
+
+/* ── Typography ── */
+.kpi-label {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
+  font-weight: 400;
   letter-spacing: 0.15em;
-  color: var(--text-secondary);
   text-transform: uppercase;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.metric-huge {
+.kpi-number {
+  font-family: 'Inter', sans-serif;
   font-weight: 900;
-  font-size: 5rem;
-  line-height: 1;
-  letter-spacing: -0.05em;
+  line-height: 0.9;
+  color: #00E5FF;
+  font-size: 64px;
 }
 
-.metric-unit {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--text-dim);
-  margin-left: 0.5rem;
+.metric-number {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  line-height: 0.9;
+  font-size: 48px;
 }
 
-/* Status Pulse */
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@media (min-width: 640px) {
+  .kpi-number   { font-size: 80px; }
+  .metric-number { font-size: 54px; }
+}
+
+@media (min-width: 1024px) {
+  .kpi-number   { font-size: 96px; }
+  .metric-number { font-size: 60px; }
+}
+
+/* ── Progress Bar ── */
+.progress-bar {
+  width: 100%;
+  height: 2px;
+  background-color: #1A1A1A;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #00E5FF;
+  transition: width 0.8s ease;
+}
+
+.progress-fill-emerald { background-color: #00FF94; }
+
+/* ── Pulse Dot ── */
 .pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
   display: inline-block;
-  margin-right: 8px;
-  animation: pulse 2s infinite;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0% { transform: scale(0.95); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.4; }
-  100% { transform: scale(0.95); opacity: 1; }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
 }
 
-/* Progress Bars */
-.progress-container {
-  width: 100%;
-  height: 4px;
-  background: #141414;
-  margin-top: 1rem;
+/* ── Blink ── */
+.blink {
+  animation: blink 1.2s step-end infinite;
 }
 
-.progress-bar {
-  height: 100%;
-  transition: width 0.5s ease;
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
 }
 
-/* Layout Specifics */
-.top-bar {
+/* ── Scrollbar hide ── */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Header ── */
+.dashboard-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border-rim);
-  background: var(--bg-deep);
+  padding: 12px 24px;
+  border-bottom: 1px solid #1A1A1A;
+  background-color: #050505;
 }
 
-.status-tag {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.2em;
+/* ── Footer ── */
+.dashboard-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 24px;
+  border-top: 1px solid #1A1A1A;
+  background-color: #030303;
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-  .industrial-grid { display: flex; flex-direction: column; }
+/* ── Terminal Log Entry ── */
+.log-row {
+  display: flex;
+  gap: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.7;
 }
