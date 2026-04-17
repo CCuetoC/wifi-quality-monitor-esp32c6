@@ -110,8 +110,8 @@ void NetworkService::update(FileLogger& logger, DashboardRenderer& renderer) {
             _prefs.end();
         }
 
-        // Telemetría Cloud v9.0: Push cada 5 segundos si hay configuración
-        if (millis() - _lastCloudPush >= 5000 && !_supabaseUrl.isEmpty()) {
+        // Telemetría Cloud v9.0: Push cada 3 segundos si hay configuración
+        if (millis() - _lastCloudPush >= 3000 && !_supabaseUrl.isEmpty()) {
             _pushToCloud();
             _lastCloudPush = millis();
         }
@@ -211,7 +211,7 @@ void NetworkService::_handleRoot(FileLogger& logger) {
         h += F("document.getElementById('h_bar').style.width=d.sc+'%';");
         h += F("const chart=document.getElementById('chart');chart.innerHTML='';");
         h += F("d.h.forEach(v=>{const b=document.createElement('div');b.className='bar-web';b.style.height=((v*100)/250)+'%';chart.appendChild(b);});");
-        h += F("}catch(e){}} setTimeout(() => setInterval(update, 5000), 3000);</script></head><body>");
+        h += F("}catch(e){}} setTimeout(() => setInterval(update, 3000), 3000);</script></head><body>");
         _server->sendContent(h);
 
         // Bloque 2: Estructura Visual y Datos
