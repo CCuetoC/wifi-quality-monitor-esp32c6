@@ -110,8 +110,8 @@ void NetworkService::update(FileLogger& logger, DashboardRenderer& renderer) {
             _prefs.end();
         }
 
-        // Telemetría Cloud v9.0: Push cada 30 segundos si hay configuración
-        if (millis() - _lastCloudPush >= 30000 && !_supabaseUrl.isEmpty()) {
+        // Telemetría Cloud v9.0: Push cada 5 segundos si hay configuración
+        if (millis() - _lastCloudPush >= 5000 && !_supabaseUrl.isEmpty()) {
             _pushToCloud();
             _lastCloudPush = millis();
         }
