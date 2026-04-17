@@ -11,9 +11,16 @@
 *.map
 
 # Secretos y Configuración Local
-.env
+.env*
 src/config.h
 env_loader.pyc
+
+# Web Dashboard (Next.js)
+web-dashboard/node_modules/
+web-dashboard/.next/
+web-dashboard/out/
+web-dashboard/build/
+web-dashboard/.env*
 
 # Sistema Operativo
 .DS_Store

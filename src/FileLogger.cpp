@@ -43,6 +43,8 @@ void FileLogger::checkStartupReason() {
         case ESP_RST_EXT:     r = "PIN_BOOT"; break;
         case ESP_RST_SW:      r = "SOFTWARE_BOOT"; break;
         case ESP_RST_WDT:     r = "WATCHDOG_BOOT"; break;
+        case ESP_RST_BROWNOUT: r = "BROWNOUT_VOLT"; break;
+        case ESP_RST_PANIC:   r = "CPU_PANIC"; break;
         default:              r = "OTHER_BOOT"; break;
     }
     logEvent("RESTART_CAUSE", r);
@@ -92,10 +94,24 @@ void FileLogger::_rotateLogs() {
     File f = LittleFS.open("/log.txt", FILE_READ);
     if (!f) return;
     size_t s = f.size();
+    if (s < 51200) { // Límite de 50KB
+        f.close();
+        return;
+    }
+
+    // Proceso de Truncamiento Circular: Preservar últimos 25KB
+    Serial.println("[LOG] Truncating log file (Circular Buffering)...");
+    f.seek(s - 25600); // Ir a la mitad (aprox)
+    f.readStringUntil('\n'); // Alinear a inicio de línea
+    
+    String trailingData = f.readString();
     f.close();
-    if (s > 30000) { // Rotación a los 30KB para evitar lentitud
-        LittleFS.rename("/log.txt", "/log_old.txt");
-        LittleFS.remove("/log_old.txt");
+
+    f = LittleFS.open("/log.txt", FILE_WRITE);
+    if (f) {
+        f.print(trailingData);
+        f.close();
+        logEvent("SYSTEM", "Log truncated - 25KB preserved");
     }
 }
 

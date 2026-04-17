@@ -1,9 +1,13 @@
 #include "NetworkService.h"
 #include "DashboardRenderer.h"
 #include <LittleFS.h>
+#include <esp_task_wdt.h>
 #include <time.h>
 #include "esp_system.h"
 #include "esp_wifi.h"
+
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 NetworkService::NetworkService() {
     _lastPingGW = 0;
@@ -15,37 +19,27 @@ NetworkService::NetworkService() {
     _lastPacketLoss = 0;
     _lastSNR = 0;
     _lastLinkEfficiency = 0.0f;
+    _lastResourceAudit = 0;
 }
 
-// CSS V4.0 - MASTERPIECE INDUSTRIAL
-String getCommonCSS() {
-    String c = "<style>body{background:#080808;color:#ccc;font-family:'Inter','Segoe UI',sans-serif;margin:0;padding-bottom:50px;}";
-    c += ".top-bar{background:#111;padding:12px 25px;border-bottom:2px solid #00ffcc;display:flex;justify-content:space-between;align-items:center;max-width:1100px;margin:0 auto 20px;box-sizing:border-box;}";
-    c += ".title{color:#00ffcc;font-weight:600;font-size:0.95em;letter-spacing:1px;} .clock{color:#777;font-family:monospace;font-size:0.85em;}";
-    c += ".nav{display:flex;gap:12px;} .nav a{color:#00ffcc;font-weight:600;font-size:0.7em;padding:6px 14px;border:1px solid #333;border-radius:4px;text-decoration:none;background:#1a1a1a;transition:0.2s;} .nav a:hover{background:#00ffcc;color:#000;}";
-    
-    // Homologación de anchos 1100px
-    c += ".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;padding:0;max-width:1100px;margin:0 auto 25px;}";
-    c += ".card{background:#111;padding:12px;border-radius:8px;border:1px solid #222;box-shadow:0 4px 10px rgba(0,0,0,0.5);} .card div:first-child{font-size:0.62em;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;} .val{font-size:0.95em;font-weight:bold;color:#eee;}";
-    
-    c += "h2{font-size:0.85em;color:#00ffcc;margin:30px auto 10px;text-align:left;max-width:1100px;padding:0 5px;text-transform:uppercase;letter-spacing:1.5px;font-weight:500;}";
-    
-    // Chart Precision Refinement
-    c += ".chart-box{background:#111;padding:15px;border-radius:10px;border:1px solid #222;max-width:1100px;margin:10px auto;display:flex;height:240px;box-sizing:border-box;}";
-    c += ".canvas{flex-grow:1;height:200px;background:#050505;border:1px solid #222;margin:0 12px;position:relative;padding-top:10px;box-sizing:border-box;}";
-    
-    // Axis Alignment (Centered with grid lines)
-    c += ".axis-l, .axis-r{height:200px;display:flex;flex-direction:column;justify-content:space-between;font-size:10px;color:#444;padding-top:10px;box-sizing:border-box;}";
-    c += ".axis-r{width:80px;color:#0fc;text-align:left;padding-left:10px;}";
-    c += ".axis-l{width:40px;text-align:right;padding-right:8px;}";
-    
-    c += ".log-container{max-width:1100px;margin:20px auto;border:1px solid #333;border-radius:8px;overflow:hidden;background:#0c0c0c;}";
-    c += ".log-grid{display:grid;grid-template-columns:110px 110px 160px 1fr;text-align:left;font-family:monospace;font-size:0.95em;}";
-    c += ".log-h{background:#00ffcc;color:#000;font-weight:bold;padding:12px;font-size:0.85em;}";
-    c += ".log-scroll{height:500px;overflow-y:auto;} .log-row{padding:10px 12px;border-bottom:1px solid #1a1a1a;}";
-    c += ".tag{padding:2px 5px;border-radius:3px;font-size:0.65em;font-weight:bold;} .CRITICAL{background:#e55;color:#fff;} .STATE_CHANGE{background:#0fc;color:#000;} .HEARTBEAT{color:#333;}";
-    c += "</style>";
-    return c;
+// CSS V8.0 - MASTER CONSOLE WIDE
+void NetworkService::_sendCommonCSS() {
+    _server->sendContent(F("<style>"));
+    _server->sendContent(F("body{background:#000;color:#fff;font-family:'Segoe UI',Roboto,sans-serif;margin:0;padding:0;overflow-x:hidden;}"));
+    _server->sendContent(F(".lcd-container{max-width:900px;margin:20px auto;background:#000;border:8px solid #222;border-radius:15px;box-shadow:0 0 40px rgba(0,255,255,0.05);overflow:hidden;}"));
+    _server->sendContent(F(".nav-tabs{display:flex;background:#1a1a1a;border-bottom:1px solid #333;position:sticky;top:0;z-index:100;}"));
+    _server->sendContent(F(".nav-tab{flex:1;padding:15px;text-align:center;color:#666;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;transition:0.3s;border-right:1px solid #222;}"));
+    _server->sendContent(F(".nav-tab:hover{background:#222;color:#0ff;} .nav-tab.active{background:#000;color:#0ff;box-shadow:inset 0 -3px 0 #0ff;}"));
+    _server->sendContent(F(".dashboard{padding:20px;} .bento-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;}"));
+    _server->sendContent(F(".chart-container{height:120px;background:rgba(0,255,255,0.02);border:1px solid #111;border-radius:8px;margin-bottom:20px;display:flex;align-items:flex-end;padding:10px;gap:4px;}"));
+    _server->sendContent(F(".bar-web{flex:1;background:#0ff;min-height:2px;border-radius:2px 2px 0 0;transition:all 0.4s cubic-bezier(0.175,0.885,0.32,1.275);}"));
+    _server->sendContent(F(".grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;} .card{background:#050505;border:1px solid #111;padding:20px;border-radius:10px;display:flex;flex-direction:column;}"));
+    _server->sendContent(F(".label{color:#555;font-size:11px;font-weight:bold;text-transform:uppercase;margin-bottom:8px;} .value{font-size:24px;font-weight:200;font-family:'Courier New',monospace;color:#fff;}"));
+    _server->sendContent(F(".health-bar-bg{height:8px;background:#111;border-radius:4px;overflow:hidden;margin:20px 0;} .health-bar-fill{height:100%;background:#0ff;transition:width 1s ease-in-out;}"));
+    _server->sendContent(F("table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;} th{text-align:left;color:#555;padding:12px;border-bottom:2px solid #222;}"));
+    _server->sendContent(F("td{padding:12px;border-bottom:1px solid #111;color:#bbb;} .tag{padding:4px 8px;border-radius:4px;font-size:10px;font-weight:bold;}"));
+    _server->sendContent(F(".CRITICAL{background:#a22;color:#fff;} .INFO{background:#22a;color:#fff;} .STATE_CHANGE{background:#0fc;color:#000;}"));
+    _server->sendContent(F("</style>"));
 }
 
 void NetworkService::begin(const char* ssid, const char* pass) {
@@ -94,9 +88,33 @@ void NetworkService::update(FileLogger& logger, DashboardRenderer& renderer) {
     if (hasTime && _bootPhase >= 3) {
         logger.checkStartupReason();
         logger.estimateLastPowerOff();
-        String msg = "ALIVE | RSSI: " + String(WiFi.RSSI()) + " | IP: " + WiFi.localIP().toString();
-        logger.logEvent("HEARTBEAT-TURBO", msg.c_str());
-        _lastHeartbeat = millis();
+        
+        // Auditoría de Recursos v7.6.2
+        if (millis() - _lastResourceAudit >= 5000) {
+            uint32_t freeH = ESP.getFreeHeap();
+            uint32_t maxH = ESP.getMaxAllocHeap();
+            uint32_t minH = ESP.getMinFreeHeap();
+            Serial.printf("[AUDIT] HEAP: %u KB | MAX_BLOCK: %u KB | MIN_EVER: %u KB | STACK: %u\n", 
+                          freeH/1024, maxH/1024, minH/1024, uxTaskGetStackHighWaterMark(NULL));
+            _lastResourceAudit = millis();
+        }
+
+        // Acelerador de Logs v7.5.0:HEARTBEAT cada 10 minutos (600,000 ms)
+        if (millis() - _lastHeartbeat >= 600000) {
+            String msg = "ALIVE | RSSI: " + String(WiFi.RSSI()) + " | IP: " + WiFi.localIP().toString();
+            logger.logEvent("HEARTBEAT", msg.c_str());
+            _lastHeartbeat = millis();
+
+            _prefs.begin("net_stats", false);
+            _prefs.putULong("t_uptime", _historicalUptime + (millis() - _startTime));
+            _prefs.end();
+        }
+
+        // Telemetría Cloud v9.0: Push cada 30 segundos si hay configuración
+        if (millis() - _lastCloudPush >= 30000 && !_supabaseUrl.isEmpty()) {
+            _pushToCloud();
+            _lastCloudPush = millis();
+        }
     }
 
     bool c = (WiFi.status() == WL_CONNECTED);
@@ -129,70 +147,163 @@ void NetworkService::update(FileLogger& logger, DashboardRenderer& renderer) {
 
 // V4.8: Enfoque Maestro - Solo Google Hostname para veracidad absoluta
 
+void NetworkService::setHistory(const int* data, int size, int index) {
+    for (int i = 0; i < 24; i++) {
+        int pos = (index + i) % size;
+        _webHistory[i] = data[pos];
+    }
+}
+
 void NetworkService::_setupWebServer(FileLogger& logger, DashboardRenderer& renderer) {
     _server->on("/", [this, &logger]() { _handleRoot(logger); });
     _server->on("/logs", [this, &logger]() { _handleLogs(logger); });
     _server->on("/config", [this]() { _handleConfig(); });
-    _server->on("/capture.bmp", [this, &renderer]() { renderer.serveScreenshot(*_server); });
-    _server->on("/debug", [this]() {
-        String info = "{\"v\":\"6.4-TURBO-MASTER\",\"build\":\"" __DATE__ " " __TIME__ "\"}";
-        _server->send(200, "application/json", info);
+    _server->on("/capture.bmp", [this, &renderer]() { 
+        if (_resMutex && xSemaphoreTake(_resMutex, pdMS_TO_TICKS(1000))) {
+            renderer.serveScreenshot(*_server); 
+            xSemaphoreGive(_resMutex);
+        } else {
+            _server->send(503, "text/plain", "Busy");
+        }
     });
+
     _server->on("/status", [this]() {
-        uint32_t fh = ESP.getFreeHeap();
-        String j = "{\"u\":\"" + getUptimeString() + "\",\"r\":" + String(WiFi.RSSI()) + ",\"pg\":" + String(_lastPingGW) + ",\"pn\":" + String(_lastPingInternet) + ",\"qs\":" + String(_lastScore) + ",\"re\":" + String(_reconnectCount) + ",\"h\":" + String(fh/1024) + "}";
-        _server->send(200, "application/json", j);
+        NetworkData d = getData();
+        static char jsonBuffer[1024]; 
+        
+        // Regla #3: Construcción atómica del buffer del historial
+        char hBuf[128] = "[";
+        for (int i = 0; i < 24; i++) {
+            char val[8];
+            itoa(_webHistory[i], val, 10);
+            strcat(hBuf, val);
+            if (i < 23) strcat(hBuf, ",");
+        }
+        strcat(hBuf, "]");
+
+        snprintf(jsonBuffer, sizeof(jsonBuffer), 
+            "{\"u\":\"%s\",\"rssi\":%d,\"snr\":%d,\"ch\":%d,\"bs\":\"%s\",\"gw\":%d,\"ex\":%d,\"ls\":%d,\"dr\":%d,\"sc\":%d,\"h\":%s,\"m\":%lu}",
+            getUptimeString().c_str(), d.rssi, d.snr, d.channel, d.bssid.c_str(),
+            d.pingGW, d.pingInternet, d.packetLoss, _reconnectCount, d.score, hBuf, (unsigned long)(ESP.getFreeHeap()/1024));
+            
+        _server->send(200, "application/json", jsonBuffer);
     });
     _server->begin();
+    Serial.println("[BOOT] PHASE 2: WebServer Active");
 }
 
 void NetworkService::_handleRoot(FileLogger& logger) {
-    String h = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>" + getCommonCSS();
-    h += "<script>function ck(){let n=new Date();document.getElementById('clk').innerText=n.toISOString().split('T')[0]+' '+n.toTimeString().split(' ')[0];} setInterval(ck,1000);</script></head><body>";
-    h += "<div class='top-bar' style='background:#f0f; color:#000;'><div class='title'>[ POWERTECH V6.4-TURBO-MASTER ]</div><div class='nav'><a href='/'>DASHBOARD</a><a href='/logs'>LOGGER</a><a href='/config'>SETTINGS</a></div><div class='clock' id='clk'>--</div></div>";
-    
-    // ZONA 0: V-MIRROR (Espejo Visual Industrial)
-    h += "<h2>LIVE V-DISPLAY (LCD MIRROR)</h2>";
-    h += "<div style='max-width:1100px;margin:10px auto;background:#111;padding:15px;border-radius:10px;border:1px solid #0fc;text-align:center;'>";
-    h += "<img id='vdisplay' src='/capture.bmp' style='width:100%;max-width:640px;border:2px solid #333;border-radius:4px;image-rendering:pixelated;'>";
-    h += "<div style='margin-top:10px;'><button onclick=\"document.getElementById('vdisplay').src='/capture.bmp?'+new Date().getTime()\" style='background:#1a1a1a;color:#0fc;border:1px solid #0fc;padding:8px 20px;cursor:pointer;border-radius:4px;font-size:0.8em;font-weight:bold;'>REFRESH LCD VIEW</button></div></div>";
+    if (_resMutex && xSemaphoreTake(_resMutex, pdMS_TO_TICKS(1000))) {
+        _server->setContentLength(CONTENT_LENGTH_UNKNOWN);
+        _server->send(200, "text/html", "");
 
-    h += "<h2>LIVE METRICS</h2><div class='grid'>";
-    h += "<div class='card'><div>UPTIME</div><div class='val'>"+getUptimeString()+"</div></div>";
-    h += "<div class='card'><div>RSSI</div><div class='val'>"+String(WiFi.RSSI())+" dBm</div></div><div class='card'><div>SCORE</div><div class='val'>"+String(_lastScore)+"%</div></div>";
-    h += "<div class='card'><div>GATEWAY</div><div class='val'>"+String(_lastPingGW)+" ms</div></div><div class='card'><div>LATENCY (ms)</div><div class='val'>"+String(_lastPingInternet)+" ms</div></div>";
-    h += "<div class='card'><div>RAM (FREE)</div><div class='val'>"+String(ESP.getFreeHeap()/1024)+" KB</div></div><div class='card'><div>RECONS</div><div class='val'>"+String(_reconnectCount)+"</div></div></div>";
-     h += "<h2>WIFI QUALITY</h2><div class='chart-box'><div class='axis-l'><div>100%</div><div>75%</div><div>50%</div><div>25%</div><div>0%</div></div><div class='canvas'><svg width='100%' height='100%' viewBox='0 0 600 110' preserveAspectRatio='none'>";
-    for(int y=10; y<=110; y+=25) h += "<line x1='0' y1='"+String(y)+"' x2='600' y2='"+String(y)+"' stroke='#222'/>";
-    int hi[46], id; if(logger.loadTrend(hi, 46, &id)) { h += "<polyline points='"; for(int i=0; i<46; i++) h += String(i*13) + "," + String(110-(hi[(id+i)%46]/10)) + " "; h += "' fill='none' stroke='#0fc' stroke-width='1.5'/></svg></div>"; h += "<div class='axis-r'><div>EXCELLENT</div><div>GOOD</div><div>DEGRADED</div><div>CRITICAL</div></div></div>"; }
-    
-    h += "<h2>SYSTEM RAM</h2><div class='chart-box'><div class='axis-l'><div>100%</div><div>75%</div><div>50%</div><div>25%</div><div>0%</div></div><div class='canvas'><svg width='100%' height='100%' viewBox='0 0 600 110' preserveAspectRatio='none'>";
-    for(int y=10; y<=110; y+=25) h += "<line x1='0' y1='"+String(y)+"' x2='600' y2='"+String(y)+"' stroke='#222'/>";
-    int rh[46], rid; if(logger.loadRam(rh, &rid)) { h += "<polyline points='"; for(int i=0; i<46; i++) h += String(i*13) + "," + String(110-((rh[(rid+i)%46]*100)/512)) + " "; h += "' fill='none' stroke='#48f' stroke-width='1.5'/></svg></div>"; h += "<div class='axis-r'><div>512 KB</div><div>384 KB</div><div>256 KB</div><div>128 KB</div><div>0 KB</div></div></div>"; }
-    h += "</body></html>"; _server->send(200, "text/html", h);
+        // Bloque 1: Cabecera, CSS y Script de Control
+        String h = F("<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>");
+        _server->sendContent(h);
+        _sendCommonCSS(); // v8.5: Estilos desde Flash
+        
+        h = F("<script>async function update(){try{const r=await fetch('/status');const d=await r.json();");
+        h += F("document.getElementById('clk').innerText=new Date().toLocaleTimeString();");
+        h += F("document.getElementById('val_sig').innerText=d.rssi+'d/'+d.snr+'dB';");
+        h += F("document.getElementById('val_ch').innerText=d.ch+'(AX)';");
+        h += F("document.getElementById('val_bs').innerText=d.bs.substring(6);");
+        h += F("document.getElementById('val_re').innerText=d.u;");
+        h += F("document.getElementById('h_bar').style.width=d.sc+'%';");
+        h += F("const chart=document.getElementById('chart');chart.innerHTML='';");
+        h += F("d.h.forEach(v=>{const b=document.createElement('div');b.className='bar-web';b.style.height=((v*100)/250)+'%';chart.appendChild(b);});");
+        h += F("}catch(e){}} setTimeout(() => setInterval(update, 5000), 3000);</script></head><body>");
+        _server->sendContent(h);
+
+        // Bloque 2: Estructura Visual y Datos
+        String b = F("<div class='lcd-container'><div class='nav-tabs'><a href='/' class='nav-tab active'>DASHBOARD</a>");
+        b += F("<a href='/logs' class='nav-tab'>EVENT LOGS</a><a href='/config' class='nav-tab'>SETTINGS</a></div>");
+        b += F("<div class='dashboard'><div class='bento-header'><div style='color:#0ff;font-weight:bold;'>SSID: ");
+        b += WiFi.SSID();
+        b += F("</div><div style='color:#555;'>IP: 192.168.1.40</div><div id='clk'>--</div></div>");
+        b += F("<div id='chart' class='chart-container'></div><div class='health-bar-bg'><div id='h_bar' class='health-bar-fill'></div></div>");
+        b += F("<div class='grid'><div class='card'><div class='label'>SIGNAL QUALITY</div><div class='value' id='val_sig'>--</div></div>");
+        b += F("<div class='card'><div class='label'>PHYSICAL LAYER</div><div class='value' id='val_ch'>--</div></div>");
+        b += F("<div class='card'><div class='label'>ACCESS POINT BSSID</div><div class='value' id='val_bs'>--</div></div>");
+        b += F("<div class='card'><div class='label'>SYSTEM UPTIME</div><div class='value' id='val_re'>--</div></div>");
+        b += F("</div></div></div></body></html>");
+        _server->sendContent(b);
+
+        _server->sendContent("");
+        xSemaphoreGive(_resMutex);
+    } else {
+        _server->send(503, "text/plain", "Busy");
+    }
 }
 
 void NetworkService::_handleLogs(FileLogger& logger) {
-    _server->setContentLength(CONTENT_LENGTH_UNKNOWN); _server->send(200, "text/html", "");
-    _server->sendContent("<html><head><meta charset='UTF-8'>" + getCommonCSS() + "</head><body>" );
-    _server->sendContent("<div class='top-bar'><div class='title'>WIFI QUALITY MONITOR</div><div class='nav'><a href='/'>DASHBOARD</a><a href='/logs'>LOGGER</a><a href='/config'>SETTINGS</a></div><div class='clock'>LOGGER ACTIVE</div></div>");
-    _server->sendContent("<h2>EVENT LOGGER</h2><div class='log-container'><div class='log-grid log-h'><div>DATE</div><div>TIME</div><div>EVENT</div><div>DESCRIPTION</div></div><div class='log-scroll'>");
-    File f = LittleFS.open("/log.txt", FILE_READ); if (f.size() > 5000) f.seek(f.size() - 5000); String data = f.readString(); f.close();
-    int lineStart = data.indexOf('\n') + 1; String buf[46]; int count = 0;
-    while(lineStart < data.length() && count < 46) { 
-        int next = data.indexOf('\n', lineStart); if (next == -1) next = data.length(); 
-        buf[count++] = data.substring(lineStart, next); lineStart = next + 1; 
+    if (_resMutex && xSemaphoreTake(_resMutex, pdMS_TO_TICKS(2000))) {
+        _server->setContentLength(CONTENT_LENGTH_UNKNOWN);
+        _server->send(200, "text/html", "");
+
+        _server->sendContent(F("<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"));
+        _sendCommonCSS();
+        _server->sendContent(F("</head><body><div class='lcd-container'><div class='nav-tabs'>"));
+        _server->sendContent(F("<a href='/' class='nav-tab'>DASHBOARD</a>"));
+        _server->sendContent(F("<a href='/logs' class='nav-tab active'>EVENT LOGS</a>"));
+        _server->sendContent(F("<a href='/config' class='nav-tab'>SETTINGS</a></div>"));
+        _server->sendContent(F("<div class='dashboard'><div class='bento-header'><div>EVENT LOGS (Last 20)</div><div style='color:#555;'>v8.5 ATOMIC</div></div>"));
+        _server->sendContent(F("<table><thead><tr><th>DATE</th><th>TIME</th><th>TYPE</th><th>MESSAGE</th></tr></thead><tbody>"));
+
+        File f = LittleFS.open("/log.txt", "r");
+        if (f) {
+            if (f.size() > 2048) f.seek(f.size() - 2048);
+            String rows[20];
+            int count = 0;
+            while (f.available() && count < 20) {
+                yield(); 
+                esp_task_wdt_reset(); // v8.6: Feed Watchdog in loops
+                String l = f.readStringUntil('\n');
+                int s1 = l.indexOf('|'), s2 = l.indexOf('|', s1 + 1), s3 = l.indexOf('|', s2 + 1);
+                if (s1 > 0 && s3 > 0) {
+                    String tp = l.substring(s2 + 1, s3);
+                    if (tp == "HEARTBEAT") continue;
+                    String row = "<tr><td>" + l.substring(0, s1) + "</td><td>" + l.substring(s1 + 1, s2) + "</td>";
+                    row += "<td><span class='tag " + tp + "'>" + tp + "</span></td><td>" + l.substring(s3 + 1) + "</td></tr>";
+                    rows[count++] = row;
+                }
+            }
+            f.close();
+            for(int i=count-1; i>=0; i--) _server->sendContent(rows[i]);
+        }
+        
+        _server->sendContent(F("</tbody></table></div></div><script>setTimeout(()=>location.reload(),10000);</script></body></html>"));
+        _server->sendContent("");
+        xSemaphoreGive(_resMutex);
+    } else {
+        _server->send(503, "text/plain", "Hardware Busy");
     }
-    for(int i=count-1; i>=0; i--) { String l = buf[i]; int s1=l.indexOf('|'), s2=l.indexOf('|', s1+1), s3=l.indexOf('|', s2+1); if(s1>0 && s3>0) { String dt=l.substring(0,s1), tm=l.substring(s1+1,s2), tp=l.substring(s2+1,s3), msg=l.substring(s3+1); if (tp == "HEARTBEAT") continue; _server->sendContent("<div class='log-grid log-row'><div>"+dt+"</div><div>"+tm+"</div><div><span class='tag "+tp+"'>"+tp+"</span></div><div>"+msg+"</div></div>"); } }
-    _server->sendContent("</div></div><script>setTimeout(()=>location.reload(),5000);</script></body></html>"); _server->client().stop();
 }
 
 void NetworkService::_handleConfig() {
-    String h = "<html><head><meta charset='UTF-8'>" + getCommonCSS() + "</head><body>" ;
-    h += "<div class='top-bar'><div class='title'>WIFI QUALITY MONITOR</div><div class='nav'><a href='/'>DASHBOARD</a><a href='/logs'>LOGGER</a><a href='/config'>SETTINGS</a></div><div class='clock'>CONFIG MODE</div></div>";
-    h += "<h2>Settings</h2><form action='/save' method='POST' style='display:inline-block;max-width:1100px;margin:20px auto;width:100%;text-align:left;padding-left:10px;'>";
-    h += "SSID:<br><input type='text' name='ssid' style='width:300px;background:#111;color:#fff;border:1px solid #333;margin:8px 0;padding:8px;'><br>Pass:<br><input type='password' name='pass' style='width:300px;background:#111;color:#fff;border:1px solid #333;margin:8px 0;padding:8px;'><br>GMT Offset:<br><input type='number' name='gmt' value='"+String(_gmtOffset)+"' style='width:80px;background:#111;color:#fff;border:1px solid #333;margin:8px 0;padding:8px;'><br><br><input type='submit' value='SAVE & REBOOT' style='background:#0fc;color:#000;padding:10px 20px;border:none;border-radius:4px;cursor:pointer;'></form></body></html>";
-    _server->send(200, "text/html", h);
+    if (_resMutex && xSemaphoreTake(_resMutex, pdMS_TO_TICKS(1000))) {
+        _server->setContentLength(CONTENT_LENGTH_UNKNOWN);
+        _server->send(200, "text/html", "");
+
+        _server->sendContent(F("<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"));
+        _sendCommonCSS();
+        _server->sendContent(F("</head><body><div class='lcd-container'><div class='nav-tabs'>"));
+        _server->sendContent(F("<a href='/' class='nav-tab'>DASHBOARD</a>"));
+        _server->sendContent(F("<a href='/logs' class='nav-tab'>EVENT LOGS</a>"));
+        _server->sendContent(F("<a href='/config' class='nav-tab active'>SETTINGS</a></div>"));
+        _server->sendContent(F("<div class='dashboard'><div class='bento-header'><div>SYSTEM CONFIGURATION</div><div style='color:#555;'>v8.5 MASTER</div></div>"));
+        
+        _server->sendContent(F("<form action='/save' method='POST' style='max-width:400px;margin:20px 0;'>"));
+        _server->sendContent(F("<div class='label'>WIFI SSID</div><input type='text' name='ssid' style='width:100%;background:#111;color:#fff;border:1px solid #333;margin-bottom:20px;padding:12px;border-radius:4px;'>"));
+        _server->sendContent(F("<div class='label'>WIFI PASSWORD</div><input type='password' name='pass' style='width:100%;background:#111;color:#fff;border:1px solid #333;margin-bottom:20px;padding:12px;border-radius:4px;'>"));
+        _server->sendContent(F("<div class='label'>GMT OFFSET (Lima: -5)</div><input type='number' name='gmt' value='-5' style='width:100%;background:#111;color:#fff;border:1px solid #333;margin-bottom:30px;padding:12px;border-radius:4px;'>"));
+        _server->sendContent(F("<input type='submit' value='APPLY & REBOOT SYSTEM' style='background:#0fc;color:#000;padding:15px;border:none;border-radius:4px;font-weight:bold;width:100%;cursor:pointer;'></form>"));
+        
+        _server->sendContent(F("</div></div></body></html>"));
+        _server->sendContent("");
+        xSemaphoreGive(_resMutex);
+    } else {
+        _server->send(503, "text/plain", "Busy");
+    }
 }
 
 String NetworkService::getUptimeString() { 
@@ -207,7 +318,11 @@ NetworkData NetworkService::getData() {
         d.rssi = WiFi.RSSI(); d.ip = WiFi.localIP().toString(); d.channel = WiFi.channel(); 
         d.pingGW = _lastPingGW; d.pingInternet = _lastPingInternet; d.score = _lastScore; 
         d.jitter = _lastJitter; d.packetLoss = _lastPacketLoss; 
-        d.snr = _lastSNR; d.linkEfficiency = _lastLinkEfficiency;
+        
+        // SNR Estimado (V7.4.0 Legacy Mode para C6)
+        d.snr = 25; // Valor estático por defecto hasta integración PHY
+        
+        d.linkEfficiency = _lastLinkEfficiency;
         d.bssid = _lastBSSID; d.phyMode = _lastPhyMode;
     } else { 
         d.rssi = -100; d.channel = 0; d.pingGW = -1; d.pingInternet = -1; d.score = 0; 
@@ -215,6 +330,12 @@ NetworkData NetworkService::getData() {
         d.bssid = "00:00:00:00:00:00"; d.phyMode = "OFF";
     } 
     return d; 
+}
+
+void NetworkService::setSupabaseConfig(String url, String key) {
+    _supabaseUrl = url;
+    _supabaseKey = key;
+    Serial.println("[CLOUD] Supabase Config Received");
 }
 
 int NetworkService::getReconnectCount() { return _reconnectCount; }
@@ -225,4 +346,37 @@ void NetworkService::setQuality(int score, int jitter, int loss, int snr, float 
     _lastPacketLoss = loss;
     _lastSNR = snr;
     _lastLinkEfficiency = efficiency;
+}
+
+void NetworkService::_pushToCloud() {
+    if (WiFi.status() != WL_CONNECTED) return;
+    
+    WiFiClientSecure client;
+    client.setInsecure(); // Simplificado para Supabase HTTPS
+    HTTPClient http;
+    
+    // Endpoint Digital Twin: Fila id=1
+    String url = _supabaseUrl + "/rest/v1/device_state?id=eq.1";
+    
+    http.begin(client, url);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("apikey", _supabaseKey);
+    http.addHeader("Authorization", "Bearer " + _supabaseKey);
+    http.addHeader("Prefer", "resolution=merge-duplicates");
+
+    NetworkData d = getData();
+    char json[512];
+    snprintf(json, sizeof(json), 
+        "{\"payload\":{\"rssi\":%d,\"snr\":%d,\"score\":%d,\"uptime\":\"%s\",\"packetLoss\":%d,\"channel\":%d,\"ip\":\"%s\",\"bssid\":\"%s\",\"status\":\"ONLINE\"}}",
+        d.rssi, d.snr, d.score, getUptimeString().c_str(), d.packetLoss, d.channel, d.ip.c_str(), d.bssid.c_str());
+
+    int httpCode = http.sendRequest("PATCH", json);
+    
+    if (httpCode > 0) {
+        Serial.printf("[CLOUD] Digital Twin Updated (Code: %d)\n", httpCode);
+    } else {
+        Serial.printf("[CLOUD] Push Error: %s\n", http.errorToString(httpCode).c_str());
+    }
+    
+    http.end();
 }

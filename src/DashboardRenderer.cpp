@@ -38,7 +38,7 @@ void DashboardRenderer::begin() {
     _tft.setRotation(1);
     
     Serial.println("DashboardRenderer: Configurando Lienzo (Sprite)...");
-    _canvas.setColorDepth(16);
+    _canvas.setColorDepth(8);
     
     if (!_canvas.createSprite(_tft.width(), _tft.height())) {
         Serial.println("!!! ERROR: Memoria insuficiente para el Sprite !!!");
@@ -112,59 +112,96 @@ void DashboardRenderer::drawDashboard(const NetworkData& net,
     const int safe_w = 320 - (2 * margin);
     const int safe_h = 172 - (2 * margin);
 
-    // 1. Borde de Alerta Glow (Marco de Referencia Interno)
-    _canvas.drawRect(margin, margin, safe_w, safe_h, stateColor);
-    _canvas.drawRect(margin + 1, margin + 1, safe_w - 2, safe_h - 2, stateColor);
+    // 1. ZONAS PROPORCIONALES v7.1.4 (Surgical Master)
+    int h_total = _canvas.height();
+    int z1_h = (h_total * 12) / 100; // Header (SSID) ~21px
+    int z2_h = (h_total * 14) / 100; // Telemetry Row (LAT + IP) ~24px
+    int z3_h = (h_total * 26) / 100; // Chart Area ~45px
+    int z4_h = (h_total * 14) / 100; // Quality Row ~24px
+    int z5_h = h_total - z1_h - z2_h - z3_h - z4_h; // Metrics Grid ~58px
 
-    // 2. Cabecera (Sincronizada con Mockup)
-    _canvas.setTextSize(1);
-    _canvas.setTextColor(TFT_CYAN, TFT_BLACK);
-    _canvas.setTextDatum(TL_DATUM);
-    _canvas.setCursor(margin + 6, margin + 5); 
-    _canvas.print("SSID: "); _canvas.setTextColor(TFT_WHITE); _canvas.print(WiFi.SSID());
-    
-    _canvas.setTextColor(0x7BEF); // Gris tenue
-    _canvas.setTextDatum(TR_DATUM);
-    _canvas.drawString("IP: 192.168.1.40", margin + safe_w - 6, margin + 5);
-
-    // 3. Componentes Visuales
-    _drawLagChart(net, history, historySize, circularIndex);
-    _drawHealthBar(health.score, health.state);
-    _drawMetricsGrid(net, health, uptime, disconnectRate);
+    // 2. Ejecución Quirúrgica por Zonas
+    _drawHeader(WiFi.SSID().substring(0,18), 0, z1_h);
+    _drawTelemetryRow(net, "192.168.1.40", z1_h, z2_h);
+    _drawLagChart(history, historySize, circularIndex, z1_h + z2_h, z3_h);
+    _drawHealthBar(health.score, health.state, z1_h + z2_h + z3_h, z4_h);
+    _drawMetricsGrid(net, health, uptime, reconnects, disconnectRate, z1_h + z2_h + z3_h + z4_h, z5_h);
     
     _canvas.pushSprite(&_tft, 0, 0);
 }
 
-void DashboardRenderer::_drawLagChart(const NetworkData& net, const int* history, int size, int circularIndex) {
-    // Coordenadas fijas para evitar solapamientos (dentro de safe_w)
-    int chartX = 18, chartY = 32, chartW = 284, chartH = 50; 
+void DashboardRenderer::_drawHeader(String ssid, int y, int h) {
+    _canvas.fillRect(0, y, 320, h, TFT_BLACK); // Limpiar zona
+    _canvas.setFont(&fonts::Font0);
+    _canvas.setTextSize(1.5);
+    _canvas.setTextDatum(middle_center);
     
-    _canvas.setTextDatum(TL_DATUM);
-    _canvas.setTextColor(0x7BEF);
-    _canvas.drawString("LATENCY (ms): ", chartX + 4, chartY - 9);
+    String label = "SSID: ";
+    int totalW = _canvas.textWidth(label + ssid);
+    int startX = 160 - (totalW / 2);
+    
+    _canvas.setTextDatum(middle_left);
+    _canvas.setTextColor(0x5E58);
+    _canvas.drawString(label, startX, y + (h/2));
+    
     _canvas.setTextColor(TFT_WHITE);
-    _canvas.drawString(String((int)net.pingInternet), chartX + 85, chartY - 9);
+    _canvas.drawString(ssid, startX + _canvas.textWidth(label), y + (h/2));
+}
+
+void DashboardRenderer::_drawTelemetryRow(const NetworkData& net, String ip, int y, int h) {
+    _canvas.fillRect(0, y, 320, h, TFT_BLACK); // Limpiar zona
+    _canvas.setFont(&fonts::Font0);
+    _canvas.setTextSize(1.5);
     
-    _canvas.drawRect(chartX, chartY, chartW, chartH, 0x2104); 
+    // Identidad de Latencia (Restaurado palabra completa)
+    _canvas.setTextDatum(middle_left);
+    _canvas.setTextColor(0x5E58);
+    _canvas.drawString("LATENCY:", 14, y + (h/2));
+    _canvas.setTextColor(TFT_WHITE);
+    int latencyX = 14 + _canvas.textWidth("LATENCY:") + 4;
+    _canvas.drawString(String((int)net.pingInternet) + "ms", latencyX, y + (h/2));
+
+    // IP Identificada
+    _canvas.setTextDatum(middle_right);
+    _canvas.setTextColor(TFT_WHITE);
+    _canvas.drawString(ip, 306, y + (h/2));
     
-    const int n_bars = 46;
-    int barW = 4;
-    int gap = 2;
+    _canvas.setTextColor(0x5E58);
+    _canvas.drawString("IP:", 306 - _canvas.textWidth(ip) - 4, y + (h/2));
+}
+
+void DashboardRenderer::_drawLagChart(const int* history, int size, int circularIndex, int y, int h) {
+    _canvas.fillRect(0, y, 320, h, TFT_BLACK); // Limpiar zona
+    int chartX = 10, chartW = 300; // Simetría con Bento Grid
+    int chartH = h - 6; 
+    
+    _canvas.drawRect(chartX, y + 2, chartW, chartH, 0x1082); 
+    
+    const int n_bars = 24; // Ajustado para 300px
+    int barW = 10, gap = 2;
     for (int i = 0; i < n_bars; i++) {
         int idx = (circularIndex + i) % size;
         int val = (idx < size) ? history[idx] : 0;
         if (val <= 0) continue; 
 
-        int h = map(val, 0, 500, 2, chartH - 4);
-        if (h > chartH - 4) h = chartH - 4;
+        // Calibración v7.4.4: Escala 0-120ms para visibilidad de latencia estándar
+        int barH = map(val, 0, 120, 2, chartH - 4);
+        if (barH > chartH - 4) barH = chartH - 4;
         
-        uint16_t color = (val > 100) ? ((val > 500) ? TFT_RED : TFT_YELLOW) : 0x07FF;
-        int bx = chartX + 3 + (i * (barW + gap));
-        if (bx + barW > chartX + chartW - 2) break;
+        uint16_t color = 0x07FF; // Cyan Industrial (Máximo contraste)
+        
+        // BX = chartX(10) + padding(4) = 14px (ALINEACIÓN QUIRÚRGICA)
+        int bx = chartX + 4 + (i * (barW + gap));
+        if (bx + barW > chartX + chartW - 4) break;
 
-        _canvas.fillRect(bx, chartY + chartH - h - 1, barW, h, color);
-        _canvas.drawFastHLine(bx, chartY + chartH - h - 1, barW, TFT_WHITE);
+        _canvas.fillRect(bx, y + 2 + chartH - barH - 1, barW, barH, color);
     }
+
+    _canvas.setTextDatum(BR_DATUM);
+    _canvas.setFont(&fonts::Font0);
+    _canvas.setTextSize(1);
+    _canvas.setTextColor(0x4208);
+    _canvas.drawString("v7.7.0-OPTIMIZED", 320 - 4, _canvas.height() - 4);
 }
 
 int DashboardRenderer::_mapLatencyToY(int ms, int h) {
@@ -177,56 +214,91 @@ int DashboardRenderer::_mapLatencyToY(int ms, int h) {
     return h;
 }
 
-void DashboardRenderer::_drawHealthBar(int score, HealthState lastState) {
-    int bx = 18, by = 90, bw = 250, bh = 8;
-    _canvas.drawRect(bx, by, bw, bh, 0x2104);
-    
-    int barW = (score * (bw - 4)) / 100;
-    _canvas.fillRect(bx + 2, by + 2, barW, bh - 4, _getColorForState(lastState));
-    
-    _canvas.setTextDatum(TR_DATUM);
+void DashboardRenderer::_drawHealthBar(int score, HealthState lastState, int y, int h) {
+    _canvas.fillRect(0, y, 320, h, TFT_BLACK); // Limpiar zona
+    int bx = 110, bw = 196, bh = 14; 
+    int by = y + (h - bh) / 2;
+
+    _canvas.setFont(&fonts::Font0);
+    _canvas.setTextSize(1.5);
+    _canvas.setTextDatum(middle_left);
+    _canvas.setTextColor(0x5E58);
+    _canvas.drawString("QUAL:", 14, y + (h/2)); // QUAL abreviado
     _canvas.setTextColor(TFT_WHITE);
-    _canvas.drawString(String(score) + "%", 304, by - 2);
+    _canvas.drawString(String(score) + "%", 68, y + (h/2));
+
+    int n_segments = 12; // 12 Segmentos Multinivel
+    int segW = (bw / n_segments) - 1;
+    int active_segs = (score * n_segments) / 100;
+
+    for (int i = 0; i < n_segments; i++) {
+        int sx = bx + (i * (segW + 1));
+        uint16_t segColor;
+        
+        // Rectificación Cromática v7.4.2 (Paleta Industrial Certificada)
+        if (i < 3)      segColor = 0xF800; // Rojo Puro
+        else if (i < 6) segColor = 0xFD20; // Naranja/Ámbar
+        else if (i < 9) segColor = 0xFFE0; // Amarillo Tráfico
+        else            segColor = 0x07E0; // Verde Brillante
+
+        uint16_t drawColor = (i < active_segs) ? segColor : 0x2104; // Gris oscuro inactivo
+        _canvas.fillRect(sx, by, segW, bh, drawColor);
+    }
 }
 
-void DashboardRenderer::_drawMetricsGrid(const NetworkData& net, const HealthMetrics& health, String uptime, float disconnectRate) {
-    int startX = 18, startY = 105;
-    int boxW = 141, boxH = 24;
+void DashboardRenderer::_drawMetricsGrid(const NetworkData& net, const HealthMetrics& health, String uptime, int reconnects, float disconnectRate, int y, int h) {
+    _canvas.fillRect(0, y, 320, h, TFT_BLACK); // Limpiar zona
+    int startX = 10, startY = y + 2; // Alineado al px 10 para que el texto sea 14
+    int boxW = 148, boxH = (h / 2) - 4; // Recalculado para márgenes de 10px
 
-    auto drawMetric = [&](int col, int row, const char* label, String val, uint16_t color) {
-        int x = startX + (col * (boxW + 2));
-        int y = startY + (row * (boxH + 2));
-        _canvas.drawRect(x, y, boxW, boxH, 0x1082);
+    auto drawMetric = [&](int col, int row, const char* label, String val, uint16_t color, float tSize = 1.5) {
+        int x = startX + (col * (boxW + 4)); // Gap de 4px entre cajas
+        int dy = startY + (row * (boxH + 2));
+        _canvas.drawRect(x, dy, boxW, boxH, 0x1082); 
         
-        _canvas.setTextDatum(TL_DATUM);
-        _canvas.setTextColor(0x7BEF);
-        _canvas.drawString(label, x + 4, y + 8);
+        _canvas.setFont(&fonts::Font0);
+        _canvas.setTextSize(1.5); // Etiqueta siempre estable en 1.5
+        _canvas.setTextDatum(middle_left);
+        _canvas.setTextColor(0x5E58);
+        _canvas.drawString(label, x + 4, dy + (boxH / 2)); // 10 + 4 = 14! (Alineación quirúrgica)
         
-        _canvas.setTextDatum(TR_DATUM);
+        _canvas.setTextSize(tSize); // Valor con escala variable para densidad
+        _canvas.setTextDatum(middle_right);
         _canvas.setTextColor(color);
-        _canvas.drawString(val, x + boxW - 4, y + 8);
+        _canvas.drawString(val, x + boxW - 4, dy + (boxH / 2));
     };
 
-    drawMetric(0, 0, "SIGNAL", String(net.rssi) + " dBm", (net.rssi < -67 ? TFT_ORANGE : TFT_GREEN));
-    drawMetric(1, 0, "CHAN", String(net.channel) + " (AX)", TFT_CYAN);
-    drawMetric(0, 1, "GW/EXT", String(net.pingGW) + "/" + String(net.pingInternet), TFT_WHITE);
-    
-    bool toggle = (millis() % 10000 < 5000);
-    if (toggle) drawMetric(1, 1, "UPTIME", uptime.substring(0,8), TFT_WHITE);
-    else drawMetric(1, 1, "BSSID", net.bssid.substring(9), TFT_YELLOW);
+    bool showPageTwo = (millis() / 5000) % 2; 
+
+    if (!showPageTwo) {
+        // PÁGINA 1: RF y Latencia (Lo que está pasando ahora)
+        String sigSNR = String(net.rssi) + "d/" + String(net.snr) + "dB";
+        drawMetric(0, 0, "SIGNAL", sigSNR, (net.rssi < -67 ? 0xF800 : TFT_WHITE), 1.2); 
+        drawMetric(1, 0, "CHAN", String(net.channel) + "(AX)", TFT_WHITE);
+        drawMetric(0, 1, "BSSID", net.bssid.substring(6), TFT_WHITE, 1.3); // Identidad AP
+        drawMetric(1, 1, "GW/EXT", String(net.pingGW) + "/" + String(net.pingInternet), TFT_WHITE, 1.3); // Latencia Inmediata
+    } else {
+        // PÁGINA 2: Auditoría y Resiliencia (Salud a largo plazo)
+        drawMetric(0, 0, "LOSS %", String(net.packetLoss) + "%", (net.packetLoss > 2 ? 0xF800 : TFT_WHITE));
+        drawMetric(1, 0, "DNS", "OK", TFT_WHITE); // Estado servicio DNS
+        drawMetric(0, 1, "DISC %", String(disconnectRate * 100, 1) + "%", (disconnectRate > 0.05 ? 0xF800 : TFT_WHITE));
+        drawMetric(1, 1, "UPTIME", uptime.substring(0,8), TFT_WHITE);
+    }
 
     _canvas.setTextDatum(BR_DATUM);
+    _canvas.setFont(&fonts::Font0);
+    _canvas.setTextSize(1);
     _canvas.setTextColor(0x4208);
-    _canvas.drawString("v6.6.5", 320 - 12, 172 - 12);
+    _canvas.drawString("v7.7.0-OPTIMIZED", 320 - 4, _canvas.height() - 4);
 }
 
 uint16_t DashboardRenderer::_getColorForState(HealthState state) {
     switch (state) {
-        case EXCELLENT: return 0x07E0; // TFT_GREEN
-        case GOOD:      return 0x07FF; // TFT_CYAN
-        case DEGRADED:  return 0xFFE0; // TFT_YELLOW
-        case CRITICAL:  return 0xF800; // TFT_RED
-        default:        return 0xFFFF; // TFT_WHITE
+        case EXCELLENT: return 0x50C8; // Emerald
+        case GOOD:      return 0x07FF; // Cyan
+        case DEGRADED:  return 0xFFBF; // Amber
+        case CRITICAL:  return 0xDC14; // Crimson
+        default:        return 0xFFFF; // White
     }
 }
 

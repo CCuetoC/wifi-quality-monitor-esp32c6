@@ -36,11 +36,14 @@ private:
     LGFX_Sprite _canvas;
     
     uint16_t _getColorForState(HealthState state);
-    void _drawLagChart(const NetworkData& net, const int* history, int size, int circularIndex);
-    void _drawHealthBar(int score, HealthState state);
+    void _drawHeader(String ssid, int y, int h);
+    void _drawTelemetryRow(const NetworkData& net, String ip, int y, int h);
+    void _drawLagChart(const int* history, int size, int circularIndex, int y, int h);
+    void _drawHealthBar(int score, HealthState state, int y, int h);
     void _drawMetricsGrid(const NetworkData& net, 
-                         const HealthMetrics& health, 
-                         String uptime, float disconnectRate);
+                          const HealthMetrics& health, 
+                          String uptime, int reconnects, float disconnectRate,
+                          int y, int h);
     int _mapLatencyToY(int ms, int maxHeight);
 };
 

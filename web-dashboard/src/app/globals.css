@@ -1,0 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Industrial Dark Palette */
+  --bg-deep: #020202;
+  --bg-surface: rgba(10, 10, 10, 0.7);
+  --border-rim: rgba(255, 255, 255, 0.05);
+  --border-active: rgba(255, 255, 255, 0.12);
+  
+  --text-primary: #FFFFFF;
+  --text-secondary: #888888;
+  --text-dim: #444444;
+  
+  --brand-cyan: #00E5FF;
+  --brand-cyan-dim: rgba(0, 229, 255, 0.05);
+  --brand-emerald: #00FF94;
+  --brand-emerald-dim: rgba(0, 255, 148, 0.05);
+  
+  --font-editorial: 'Instrument Serif', serif;
+  --font-technical: 'Inter', sans-serif;
+  --font-code: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  cursor: crosshair; /* Detalle Industrial */
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-technical);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden;
+  
+  /* Gestalt: Texture for grounding */
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Pseudo-Grain Effect */
+body::after {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  filter: contrast(120%) brightness(120%);
+  z-index: 9999;
+}
+
+.gestalt-grid {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 1px;
+  background: var(--border-rim);
+  max-width: 1400px;
+  margin: 0 auto;
+  border: 1px solid var(--border-rim);
+}
+
+.cell {
+  background: var(--bg-deep);
+  padding: 32px;
+  position: relative;
+}
+
+/* Glassmorphism Refined */
+.glass-node {
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-rim);
+  border-radius: 4px; /* Hard-Industrial radius */
+  transition: border-color 0.4s ease;
+}
+
+.glass-node:hover {
+  border-color: var(--border-active);
+}
+
+.technical-label {
+  font-family: var(--font-code);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editorial-hero {
+  font-family: var(--font-editorial);
+  font-weight: 300;
+  letter-spacing: -0.04em;
+}
+
+/* Sparkline Container */
+.sparkline-box {
+  height: 40px;
+  width: 100%;
+  opacity: 0.6;
+  margin-top: 1rem;
+}
+
+/* Rim Lighting */
+.rim-top {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+}
+
+@media (max-width: 1024px) {
+  .gestalt-grid { display: flex; flex-direction: column; gap: 20px; background: transparent; }
+}

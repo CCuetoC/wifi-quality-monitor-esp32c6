@@ -21,6 +21,7 @@ PingManager pingMgr;
 
 // Sincronización RTOS
 SemaphoreHandle_t dataMutex;
+SemaphoreHandle_t resourceMutex; // v8.4 Atomic Lock
 NetworkData sharedNetData;
 HealthMetrics sharedHealth;
 
@@ -28,23 +29,50 @@ HealthMetrics sharedHealth;
 void taskNetwork(void* pvParameters);
 void taskUI(void* pvParameters);
 
+void printResetReason() {
+    esp_reset_reason_t reason = esp_reset_reason();
+    Serial.print("\n[DIAG] LAST RESET REASON: ");
+    switch (reason) {
+        case ESP_RST_POWERON: Serial.println("POWER ON"); break;
+        case ESP_RST_EXT:     Serial.println("EXTERNAL PIN"); break;
+        case ESP_RST_SW:      Serial.println("SOFTWARE REBOOT"); break;
+        case ESP_RST_PANIC:   Serial.println("EXCEPTION / PANIC"); break;
+        case ESP_RST_INT_WDT: Serial.println("INTERRUPT WATCHDOG"); break;
+        case ESP_RST_TASK_WDT: Serial.println("TASK WATCHDOG"); break;
+        case ESP_RST_WDT:     Serial.println("OTHER WATCHDOG"); break;
+        case ESP_RST_DEEPSLEEP: Serial.println("DEEP SLEEP"); break;
+        case ESP_RST_BROWNOUT: Serial.println("BROWNOUT (VOLTAGE DROP)"); break;
+        case ESP_RST_SDIO:    Serial.println("SDIO REBOOT"); break;
+        default:              Serial.println("UNKNOWN"); break;
+    }
+}
+
 void setup() {
     #if !defined(ARDUINO_USB_CDC_ON_BOOT) || ARDUINO_USB_CDC_ON_BOOT != 1
         Serial.begin(115200);
     #endif
     for(int i=0; i<10 && !Serial; i++) delay(100); 
 
+    setCpuFrequencyMhz(160); // v8.8.2: CPU Power Restoration (Baseline)
+    
     Serial.println("\n\n######################################");
-    Serial.println(">>>   V6.5-RTOS MASTER BOOT        <<<");
+    Serial.println(">>>   V9.0.0 DIGITAL TWIN CLOUD    <<<");
+    Serial.println("######################################");
+    printResetReason();
     Serial.println("######################################\n");
 
     dataMutex = xSemaphoreCreateMutex();
+    resourceMutex = xSemaphoreCreateMutex();
     pinMode(LED_PIN, OUTPUT);
     
     renderer.begin();
-    renderer.drawBootScreen("V6.5-RTOS LOADING...");
+    renderer.drawBootScreen("V8.4-RTOS ATOMIC...");
     
+    network.setMutex(resourceMutex);
     network.begin(WIFI_SSID, WIFI_PASS);
+    
+    // v9.0: Configuración Supabase (PROD)
+    network.setSupabaseConfig("https://vbqrtwfsgpgbdfuebdge.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZicXJ0d2ZzZ3BnYmRmdWViZGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzODYyOTUsImV4cCI6MjA5MTk2MjI5NX0.fZEXVHNXRCIg1d7qF-1cX2qEO16FmaeH6dq_9V1URWg");
 
     // Watchdog Configuration (Base)
     #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -70,10 +98,11 @@ void taskNetwork(void* pvParameters) {
         if (network.isConnected()) {
             pingMgr.performPings();
             PingResult p = pingMgr.getResults();
-            network.setPingResults(p.lastPingGW, p.lastPingInternet);
+            network.setPingResults(p.lastPingGW, p.lastPingInternet, (int)p.lossPercentage);
             
             if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100))) {
                 sharedNetData = network.getData();
+                network.setHistory(analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex());
                 xSemaphoreGive(dataMutex);
             }
         }
@@ -91,12 +120,15 @@ void taskUI(void* pvParameters) {
     while(1) {
         if (!historyLoaded) {
             if (network.getBootPhase() >= 1) {
-                int hist[46], idx;
-                if (logger.loadTrend(hist, 46, &idx)) {
-                    analyzer.loadHistory(hist, 46, idx);
-                    logger.logEvent("SYS_STATUS", "Visual History Restored");
+                if (xSemaphoreTake(resourceMutex, pdMS_TO_TICKS(500))) {
+                    int hist[46], idx;
+                    if (logger.loadTrend(hist, 46, &idx)) {
+                        analyzer.loadHistory(hist, 46, idx);
+                        logger.logEvent("SYS_STATUS", "Visual History Restored");
+                    }
+                    xSemaphoreGive(resourceMutex);
+                    historyLoaded = true;
                 }
-                historyLoaded = true;
             }
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
@@ -135,11 +167,17 @@ void taskUI(void* pvParameters) {
                 lastState = health.state;
             }
 
-            renderer.drawDashboard(localNet, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex(), 
-                                   network.getUptimeString(), network.getReconnectCount(), 0.0);
+            if (xSemaphoreTake(resourceMutex, pdMS_TO_TICKS(200))) {
+                renderer.drawDashboard(localNet, health, analyzer.getHistory(), analyzer.getHistorySize(), analyzer.getHistoryIndex(), 
+                                       network.getUptimeString(), network.getReconnectCount(), 0.0);
+                xSemaphoreGive(resourceMutex);
+            }
             digitalWrite(LED_PIN, (health.score > 70) ? HIGH : LOW);
         } else {
-            renderer.drawDisconnected(network.getUptimeString(), network.getReconnectCount(), 0.0);
+            if (xSemaphoreTake(resourceMutex, pdMS_TO_TICKS(200))) {
+                renderer.drawDisconnected(network.getUptimeString(), network.getReconnectCount(), 0.0);
+                xSemaphoreGive(resourceMutex);
+            }
             digitalWrite(LED_PIN, (millis() % 500 < 250) ? HIGH : LOW);
         }
 
